@@ -1,0 +1,39 @@
+
+* Ensure the validity of your git checkouts
+* usage
+  - this package has a bunch of source code, but only creates a single .py
+    output file, "assure"
+  - committers should run "assure setup-push" from inside a .git tree
+    - it will compile python-ed25519 and install a hook script that runs on
+      'git push'
+    - then it will ask for a key name (usually the name of the project), and
+      create the private key in ~/.git-assure/KEYNAME.signingkey
+    - it will store key name (but not the key itself) in an unused .git
+      directory. It will also record the public verifying key there.
+    - it will also ask for a place to write the user scripts to. This should
+      be some sort of "misc/" directory in your source tree. It will write
+      three files there: the original "assure" script, the public verifying
+      key, and a README.git-assure with install instructions for users. These
+      three files should be commited and published in your git repo. You may
+      also want to add notes to your top-level developer-oriented README file
+      pointing at these instructions.
+  - users (i.e. your developers who do 'git clone' and 'git pull', but not
+    necessarily 'git push'), should see these instructions, which will tell
+    them to run "assure setup-pull"
+    - when they run that, it will compile python-ed25119 and install a hook
+      script that runs on 'git fetch' and 'git pull'
+    - the public verifying key will be copied out of the source tree into an
+      unised .git directory. This prevents it from being modified by git
+      operations like 'pull' or 'checkout'.
+* data storage
+** ideally put the signatures in the repo with 'git note', attached to each
+   revision
+** if that doesn't work, put them in a separate github "Gist", and store the
+   repo URL of it next to the pubkey
+* signature format
+** one signature per line
+** message body is like "master=633641174a7bf18e49bdef581d31fdfcc603d39e"
+** sample: signing.key=unhexlify("7369676e302def04727e9a23d8fa1a66787300df0c6781edde5adbb17c68488c33ee1919447a")
+** lines are BODY SIG KEY, like:
+   - master=633641174a7bf18e49bdef581d31fdfcc603d39e sig0-7mul5nbgdghmu4mywgtpjsj3skrxyxcwub7apnunlzcgzyw2awvdcaycfuymvxqvuzijd5hxfxpgeztmjuhvisapcq3aj3utfbk56dq verf0-2gy3ublnkjoeyorb234vkqqajlm5mgej3koepk4hr6aqkmm2wuwq
+
