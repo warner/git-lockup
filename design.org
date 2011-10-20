@@ -40,6 +40,12 @@
 *** so "assure setup-pull" should get them too
 *** 'git clone' from a github repo with refs/notes/commits doesn't get them
     - 'git ls-remote' shows them
+    - 'git fetch origin refs/notes/commits:refs/notes/commits' works
+    - but it doesn't seem sticky: normal 'git fetch' doesn't update it
+      - ah, probably since the default in .git/config is fetch =
+        +refs/heads/*:refsremotes/origin/*
+      - may need to add a +refs/notes/commits:refs/notes/commits during setup
+    - I think the same is true for push
 *** TODO hm, needs more work. Looks appropriate, but moving them around
     requires some care during setup
 ** if that doesn't work, put them in a separate github "Gist", and store the
