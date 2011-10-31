@@ -71,3 +71,10 @@
 *** it'll compile that in a tempdir, and install into a quiet .git/ dir
     - .git/ASSURE-TOOLS maybe?
     - the hook script will add it to sys.path before 'import ed25519'
+
+
+* replay protection
+** if enabled, just assert that the previous value of the branch is an
+   ancestor of the new proposed version. Git takes care of the rest.
+
+
