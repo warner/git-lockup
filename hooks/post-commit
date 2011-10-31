@@ -1,5 +1,7 @@
 #!/usr/bin/python
 import os, sys, subprocess
+import ed25519
+import base64
 
 def run(cmd):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -10,6 +12,11 @@ def run(cmd):
         raise Exception()
     return stdout
 
+def remove_prefix(s, prefix):
+    if not s.startswith(prefix):
+        return None
+    return s[len(prefix):]
+
 print "--"
 print "IN POST-COMMIT"
 print "CWD is", os.getcwd()
@@ -17,5 +24,36 @@ for name in sorted(os.environ):
     if name.startswith("GIT"):
         print "%s: %s" % (name, os.environ[name])
 print "--"
-HEAD = run(["git", "rev-parse", "HEAD"]).strip()
-print "HEAD:", HEAD
+rev = run(["git", "rev-parse", "HEAD"]).strip()
+fullbranch = run(["git", "rev-parse", "--symbolic-full-name", "HEAD"]).strip()
+branch = remove_prefix(fullbranch, "refs/heads/")
+if not branch:
+    print "not commiting to refs/heads/ , ignoring"
+    sys.exit(0)
+pieces = branch.split("/")
+if "." in pieces or ".." in pieces:
+    print "scary branch name %s, ignoring" % branch
+    sys.exit(0)
+print "branch:", branch
+print "HEAD:", rev
+msg = "%s=%s" % (branch, rev)
+print "MSG:", msg
+
+gitdir = os.path.abspath(os.getenv("GIT_DIR"))
+keyfile = os.path.join(gitdir, "Assure", "keys", *pieces)
+try:
+    sk_s = open(keyfile, "rb").read()
+except EnvironmentError:
+    print "No signing key in '%s', ignoring" % keyfile
+    sys.exit(0)
+sk_s = remove_prefix(sk_s, "sign0-")
+if not sk_s:
+    raise Exception("Unrecognized signing key in '%s'" % keyfile)
+sk = ed25519.SigningKey(sk_s)
+vk = sk.get_verifying_key()
+vk_s = "verf0-"+base64.b64encode(vk.to_string())
+sig = sk.sign(msg)
+sig_s = "sig0-"+base64.b64encode(sig)
+line = "assure: %s %s %s" % (msg, sig_s, vk_s)
+print line
+
