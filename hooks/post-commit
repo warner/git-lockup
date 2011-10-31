@@ -1,0 +1,21 @@
+#!/usr/bin/python
+import os, sys, subprocess
+
+def run(cmd):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout = p.communicate()[0]
+    if p.returncode != 0:
+        print >>sys.stderr, "Error running '%s': rc=%s" % \
+              (" ".join(cmd), p.returncode)
+        raise Exception()
+    return stdout
+
+print "--"
+print "IN POST-COMMIT"
+print "CWD is", os.getcwd()
+for name in sorted(os.environ):
+    if name.startswith("GIT"):
+        print "%s: %s" % (name, os.environ[name])
+print "--"
+HEAD = run(["git", "rev-parse", "HEAD"]).strip()
+print "HEAD:", HEAD
