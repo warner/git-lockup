@@ -80,12 +80,18 @@
 ***** "post-merge" (takes a single "is a squash merge" flag)
       - runs after merge, and cannot affect the outcome
       - but it could reset the branch back to an earlier (good) version
+      - it also doesn't help us check parentage
+        - we need to check that the new rev is a descendant of the old rev
+        - which means we must know what the old rev was
+***** post-commit isn't run after a pull or merge, only 'git checkout'
+***** hm, we could use a proxy, or a magic remote protocol
+
 **** outbound
-***** script to create signature to stdout, using system-installed ed25519
-***** then add it to a 'git notes'
+***** DONE script to create signature to stdout, using system-installed ed25519
+***** DONE then add it to a 'git notes'
 ***** then figure out what .git/config is necessary to push notes
 **** inbound
-***** script to extract note
+***** DONE script to extract note
 ***** script to check signature, check parentage
 ***** attach to hook script
 ***** figure out .git/config needed to pull notes
