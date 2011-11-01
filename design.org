@@ -85,6 +85,18 @@
         - which means we must know what the old rev was
 ***** post-commit isn't run after a pull or merge, only 'git checkout'
 ***** hm, we could use a proxy, or a magic remote protocol
+***** oh, I think post-merge has enough information:
+****** we know what HEAD we're on afterwards (say "master")
+****** use the reflog to find out what master was beforehand (can't tolerate
+       octopus merges)
+****** examine master's current revision to identify all its parents
+****** one of the parents is master@{1}, so ignore that
+****** use git-config to find out what master's upstream branch is
+****** compare the other parent against the current value of the upstream
+       branch, this identifies a normal merge
+****** now do the signature check against that upstream branch value
+****** and do the parentage check against our remembered upstream value
+****** remember that upstream value for the next time
 
 **** outbound
 ***** DONE script to create signature to stdout, using system-installed ed25519
