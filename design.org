@@ -71,6 +71,30 @@
 *** it'll compile that in a tempdir, and install into a quiet .git/ dir
     - .git/ASSURE-TOOLS maybe?
     - the hook script will add it to sys.path before 'import ed25519'
+*** DEV PLAN:
+**** study hooks, identify the right ones
+***** "post-commit" for outbound: no parms, cannot affect outcome of git
+      commit
+***** we really want a "pre-merge", but there isn't one
+      - pre-receive only says it runs on the server side
+***** "post-merge" (takes a single "is a squash merge" flag)
+      - runs after merge, and cannot affect the outcome
+      - but it could reset the branch back to an earlier (good) version
+**** outbound
+***** script to create signature to stdout, using system-installed ed25519
+***** then add it to a 'git notes'
+***** then figure out what .git/config is necessary to push notes
+**** inbound
+***** script to extract note
+***** script to check signature, check parentage
+***** attach to hook script
+***** figure out .git/config needed to pull notes
+      - maybe pull them from the hook script, slightly slower
+**** then packaging:
+***** change scripts to use PYTHONPATH=.git/private
+***** figure out receiver-side installer
+***** figure out sender-side installer
+***** figure out installer-builder
 
 
 * replay protection
