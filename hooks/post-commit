@@ -57,3 +57,5 @@ sig_s = "sig0-"+base64.b64encode(sig)
 line = "assure: %s %s %s" % (msg, sig_s, vk_s)
 print line
 
+run(["git", "notes", "append", "-m", line, rev])
+print "note added"
