@@ -72,11 +72,19 @@ if current_upstream == remembered:
     print "upstream did not change, nothing to do"
     sys.exit(0)
 
-if not signed(current_upstream):
-    raise UnsignedRevisionError
-if not is_descendant(current_upstream, remembered):
-    raise RollbackError
-remember(current_upstream)
+current_upstream_is_good = False
+problem = None
+if signed(current_upstream):
+    if is_descendant(current_upstream, remembered):
+        current_upstream_is_good = True
+        remember(current_upstream)
+    else:
+        problem = RollbackError
+else:
+    problem = UnsignedRevisionError
+
+# now we only act on the problem if this merge included it, or.. something
+# between 'remembered' and 'current_upstream'?...
 
 commit = run(["git", "cat-file", "commit", current_revid])
 parents = set()
