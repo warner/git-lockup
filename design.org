@@ -1,3 +1,4 @@
+#+STARTUP: hidestars
 
 * Ensure the validity of your git checkouts
 
@@ -71,101 +72,101 @@
 *** it'll compile that in a tempdir, and install into a quiet .git/ dir
     - .git/ASSURE-TOOLS maybe?
     - the hook script will add it to sys.path before 'import ed25519'
-*** DEV PLAN:
-**** study hooks, identify the right ones
-***** "post-commit" for outbound: no parms, cannot affect outcome of git
-      commit
-***** we really want a "pre-merge", but there isn't one
-      - pre-receive only says it runs on the server side
-***** "post-merge" (takes a single "is a squash merge" flag)
-      - runs after merge, and cannot affect the outcome
-      - but it could reset the branch back to an earlier (good) version
-      - it also doesn't help us check parentage
-        - we need to check that the new rev is a descendant of the old rev
-        - which means we must know what the old rev was
-***** post-commit isn't run after a pull or merge, only 'git checkout'
-***** hm, we could use a proxy, or a magic remote protocol
-***** oh, I think post-merge has enough information:
-****** we know what HEAD we're on afterwards (say "master")
-****** use the reflog to find out what master was beforehand (can't tolerate
-       octopus merges)
-****** examine master's current revision to identify all its parents
-****** one of the parents is master@{1}, so ignore that
-****** use git-config to find out what master's upstream branch is
-****** compare the other parent against the current value of the upstream
-       branch, this identifies a normal merge
-****** now do the signature check against that upstream branch value
-****** and do the parentage check against our remembered upstream value
-****** remember that upstream value for the next time
-***** hey, 'git reflog refs/remotes/origin/master'
-****** so first, figure out what the upstream branch is
-****** then find out what the current value is. If that is a parent of the
-       current post-merged HEAD, then this was an upstream pull, so we need
-       to check stuff
-****** we've remembered some previous value of the upstream as valid. Check
-       that the new value of upstream is value and that it is a descendant of
-       the remembered value, then update our memory.
-***** huh, that's hard stuf
-****** so one tool to start with would be just a checker: look at all remote
-       branches, check each one (current value is signed, and is a descendant
-       of a previously accepted value).
-******* we'd prefer to run this during during fetch, just before setting
-        refs/heads/remotes/REMOTE/BRANCH to the new value, where we'd like to
-        abort the assignment on failure.
-******* we could also run it after fetch (but before merge), in which case
-        we'd roll back the REMOTE/BRANCH ref to the previously-accepted value
-******* we can run this during the existing post-merge hook, and learn about
-        historical problems, but if there were any problems, mitigation is
-        tricky
-******* to help with that, the routine should return (last-accepted,
-        current-bad) for each problem branch
-****** second routine is to figure out whether the recent merge was affected
-******* since the post-merge hook runs immediately after each merge, we can
-        use the current branch's reflog to find out its previous value, and
-        at the current revision's parents to figure out it's history
-******* we might also take advantage of knowing this branch's upstream name
-******* we ignore the parent that equals reflog[-1]
-******* then there's a set of merge scenarios:
-******** lots of holes, especially if the user does a bunch of fetches (but
-         not merges, so we don't get control), then merges in some
-         intermediate value
-******** toughest case is probably:
-********* upstream pushes signed values for both branch "master" and branch
-          "evil"
-********* attacker tries to trick user into getting "evil" when merging from
-          master
-********* by the time post-merge happens, we've lost information about what
-          they were trying to merge from. If they did 'git merge
-          origin/evil', then it's fine. If they did 'git merge origin/master'
-          and got the evil rev, then that's an attack.
-********* parentage tells us which revision was being merged, but not the
-          semantics (which branch name was being used)
-********* might glean it from the merge comments? ick.
-***** probably safer to simulate a fetch-hook by using a separate remote
-****** upon install, replace the remote with a special handler, and move the
-       original to e.g. "origin-raw"
-****** the replacement URL would be like "gitlock::origin-raw"
-****** then write a remote-helper for scheme "gitlock" that starts with a
-       normal git-fetch of the raw remote, then checks the branch values
-       before copying them into the processed one.
-****** hm, pushes would need handling too, should just pass-through, but
-       update the branch values.
+** DEV PLAN:
+*** study hooks, identify the right ones
+**** "post-commit" for outbound: no parms, cannot affect outcome of git
+     commit
+**** we really want a "pre-merge", but there isn't one
+     - pre-receive only says it runs on the server side
+**** "post-merge" (takes a single "is a squash merge" flag)
+     - runs after merge, and cannot affect the outcome
+     - but it could reset the branch back to an earlier (good) version
+     - it also doesn't help us check parentage
+       - we need to check that the new rev is a descendant of the old rev
+       - which means we must know what the old rev was
+**** post-commit isn't run after a pull or merge, only 'git checkout'
+**** hm, we could use a proxy, or a magic remote protocol
+**** oh, I think post-merge has enough information:
+***** we know what HEAD we're on afterwards (say "master")
+***** use the reflog to find out what master was beforehand (can't tolerate
+      octopus merges)
+***** examine master's current revision to identify all its parents
+***** one of the parents is master@{1}, so ignore that
+***** use git-config to find out what master's upstream branch is
+***** compare the other parent against the current value of the upstream
+      branch, this identifies a normal merge
+***** now do the signature check against that upstream branch value
+***** and do the parentage check against our remembered upstream value
+***** remember that upstream value for the next time
+**** hey, 'git reflog refs/remotes/origin/master'
+***** so first, figure out what the upstream branch is
+***** then find out what the current value is. If that is a parent of the
+      current post-merged HEAD, then this was an upstream pull, so we need
+      to check stuff
+***** we've remembered some previous value of the upstream as valid. Check
+      that the new value of upstream is value and that it is a descendant of
+      the remembered value, then update our memory.
+**** huh, that's hard stuf
+***** so one tool to start with would be just a checker: look at all remote
+      branches, check each one (current value is signed, and is a descendant
+      of a previously accepted value).
+****** we'd prefer to run this during during fetch, just before setting
+       refs/heads/remotes/REMOTE/BRANCH to the new value, where we'd like to
+       abort the assignment on failure.
+****** we could also run it after fetch (but before merge), in which case
+       we'd roll back the REMOTE/BRANCH ref to the previously-accepted value
+****** we can run this during the existing post-merge hook, and learn about
+       historical problems, but if there were any problems, mitigation is
+       tricky
+****** to help with that, the routine should return (last-accepted,
+       current-bad) for each problem branch
+***** second routine is to figure out whether the recent merge was affected
+****** since the post-merge hook runs immediately after each merge, we can
+       use the current branch's reflog to find out its previous value, and
+       at the current revision's parents to figure out it's history
+****** we might also take advantage of knowing this branch's upstream name
+****** we ignore the parent that equals reflog[-1]
+****** then there's a set of merge scenarios:
+******* lots of holes, especially if the user does a bunch of fetches (but
+        not merges, so we don't get control), then merges in some
+        intermediate value
+******* toughest case is probably:
+******** upstream pushes signed values for both branch "master" and branch
+         "evil"
+******** attacker tries to trick user into getting "evil" when merging from
+         master
+******** by the time post-merge happens, we've lost information about what
+         they were trying to merge from. If they did 'git merge
+         origin/evil', then it's fine. If they did 'git merge origin/master'
+         and got the evil rev, then that's an attack.
+******** parentage tells us which revision was being merged, but not the
+         semantics (which branch name was being used)
+******** might glean it from the merge comments? ick.
+**** probably safer to simulate a fetch-hook by using a separate remote
+***** upon install, replace the remote with a special handler, and move the
+      original to e.g. "origin-raw"
+***** the replacement URL would be like "gitlock::origin-raw"
+***** then write a remote-helper for scheme "gitlock" that starts with a
+      normal git-fetch of the raw remote, then checks the branch values
+      before copying them into the processed one.
+***** hm, pushes would need handling too, should just pass-through, but
+      update the branch values.
 
-**** outbound
-***** DONE script to create signature to stdout, using system-installed ed25519
-***** DONE then add it to a 'git notes'
-***** then figure out what .git/config is necessary to push notes
-**** inbound
-***** DONE script to extract note
-***** script to check signature, check parentage
-***** attach to hook script
-***** figure out .git/config needed to pull notes
-      - maybe pull them from the hook script, slightly slower
-**** then packaging:
-***** change scripts to use PYTHONPATH=.git/private
-***** figure out receiver-side installer
-***** figure out sender-side installer
-***** figure out installer-builder
+*** outbound
+**** DONE script to create signature to stdout, using system-installed ed25519
+**** DONE then add it to a 'git notes'
+**** then figure out what .git/config is necessary to push notes
+*** inbound
+**** DONE script to extract note
+**** script to check signature, check parentage
+**** attach to hook script
+**** figure out .git/config needed to pull notes
+     - maybe pull them from the hook script, slightly slower
+*** then packaging:
+**** change scripts to use PYTHONPATH=.git/private
+**** figure out receiver-side installer
+**** figure out sender-side installer
+**** figure out installer-builder
 
 
 * replay protection
