@@ -97,6 +97,14 @@
 ****** now do the signature check against that upstream branch value
 ****** and do the parentage check against our remembered upstream value
 ****** remember that upstream value for the next time
+***** hey, 'git reflog refs/remotes/origin/master'
+****** so first, figure out what the upstream branch is
+****** then find out what the current value is. If that is a parent of the
+       current post-merged HEAD, then this was an upstream pull, so we need
+       to check stuff
+****** we've remembered some previous value of the upstream as valid. Check
+       that the new value of upstream is value and that it is a descendant of
+       the remembered value, then update our memory.
 
 **** outbound
 ***** DONE script to create signature to stdout, using system-installed ed25519

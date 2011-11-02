@@ -1,0 +1,156 @@
+#! /usr/bin/python
+import os, sys, subprocess
+import ed25519
+import base64
+
+def run(cmd):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout = p.communicate()[0]
+    if p.returncode != 0:
+        print >>sys.stderr, "Error running '%s': rc=%s" % \
+              (" ".join(cmd), p.returncode)
+        raise Exception()
+    return stdout
+
+def remove_prefix(s, prefix):
+    if not s.startswith(prefix):
+        return None
+    return s[len(prefix):]
+
+
+print "POST-MERGE"
+
+
+# check for a good signature on the current revision. Run this inside a git
+# repo.
+out = run(["git", "show-ref", "--heads", "--head"]).strip()
+current_revid, fullbranch = out.split()
+branch = remove_prefix(fullbranch, "refs/heads/")
+if not branch:
+    print "not commiting to refs/heads/ , ignoring"
+    sys.exit(0)
+pieces = branch.split("/")
+if "." in pieces or ".." in pieces:
+    print "scary branch name %s, ignoring" % branch
+    sys.exit(0)
+
+print "current_revid is", current_revid
+print "branch is", branch
+
+upstream_remote = run(["git", "config", "--get", "branch.%s.remote" % branch]).strip()
+upstream_merge = run(["git", "config", "--get", "branch.%s.merge" % branch]).strip()
+if upstream_remote and upstream_merge:
+    upstream_branch = remove_prefix(upstream_merge, "refs/heads")
+    upstream = "refs/remotes/%s/%s" % (upstream_remote, upstream_branch)
+else:
+    print "no upstream configured, nothing to check"
+    sys.exit(0)
+if not locked(upstream):
+    print "upstream %s is not locked, nothing to check"
+    sys.exit(0)
+
+current_upstream = run(["git", "show-ref", "-s", upstream]).strip()
+assert current_upstream
+
+# fast-forward:
+#    current_revid=current_upstream
+#    current_upstream != remembered
+# local changes, merge from upstream:
+#    parents=[other, current_upstream]
+#    current_upstream != remembered
+# local changes, rebase from upstream:
+#    parents=[descendant of current_upstream]
+#    current_upstream != remembered
+# other merge:
+#      parents=[other, other]
+#      current_upstream = remembered
+# or if we were up-to-date, no changes, and merged in some other branch:
+#      parents=[current_upstream, other]
+#      current_upstream = remembered
+
+if current_upstream == remembered:
+    print "upstream did not change, nothing to do"
+    sys.exit(0)
+
+if not signed(current_upstream):
+    raise UnsignedRevisionError
+if not is_descendant(current_upstream, remembered):
+    raise RollbackError
+remember(current_upstream)
+
+commit = run(["git", "cat-file", "commit", current_revid])
+parents = set()
+for line in commit.splitlines():
+    if not line:
+        break
+    pieces = line.split()
+    if pieces[0] == "parent":
+        parents.add(pieces[1])
+print "parents", parents
+out = run(["git", "rev-list", "--walk-reflogs", "-2", fullbranch])
+reflog = out.splitlines()
+print "Reflog", reflog
+assert reflog[0] == current_revid
+previous_value = reflog[1]
+print "previous", previous_value
+
+
+if len(parents) == 1:
+    # this is a fast-forward, so there were no local changes. We've added one
+    # or more upstream revisions. The new current revision must be signed,
+    # and it must be a descendant of the previous value (no rollback).
+    if not signed(current_revid):
+        raise UnsignedRevisionError
+    if not is_descendant(current_revid, previous_value):
+        raise RollbackError
+elif len(parents) == 2:
+    # this is a merge between some local changes and a new upstream. We don't
+    # try to assert anything about the local changes, but we need to validate
+    # the upstream.
+    assert previous_value in parents
+    upstream = list(parents - set([previous_value]))[0]
+    if not signed(upstream):
+        raise UnsignedRevisionError
+    if not is_descendant(upstream, remembered):
+        raise RollbackError
+    remember(upstream)
+    ...
+else:
+    raise TooComplicated("I can't handle octopus merges")
+    
+
+sys.exit(0)
+
+
+gitdir = ".git"
+keyfile = os.path.join(gitdir, "Assure", "verify", *pieces)
+try:
+    vk_expected_s = open(keyfile, "rb").read().strip()
+except EnvironmentError:
+    print "no key defined for '%s', exiting" % branch
+    sys.exit(0)
+vk_expected_s2 = remove_prefix(vk_expected_s, "verf0-")
+if not vk_expected_s2:
+    raise Exception("unrecognized verifying key in '%s'" % keyfile)
+
+rev = run(["git", "rev-parse", "HEAD"]).strip()
+notes = run(["git", "notes", "show", rev])
+for line in notes.splitlines():
+    if not line.startswith("assure:"):
+        continue
+    header, msg, sig_s, vk_s = line.split()
+    if msg != "%s=%s" % (branch, rev):
+        continue
+    if vk_s != vk_expected_s:
+        print "unusual: signed by unexpected key"
+        continue
+    sig = base64.b64decode(remove_prefix(sig_s, "sig0-"))
+    vk = ed25519.VerifyingKey(base64.b64decode(vk_expected_s2))
+    vk.verify(sig, msg)
+    print "good sig"
+    break
+else:
+    print "no sig found, BAD"
+    sys.exit(0)
+print "done"
+sys.exit(0)
