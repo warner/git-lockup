@@ -105,6 +105,51 @@
 ****** we've remembered some previous value of the upstream as valid. Check
        that the new value of upstream is value and that it is a descendant of
        the remembered value, then update our memory.
+***** huh, that's hard stuf
+****** so one tool to start with would be just a checker: look at all remote
+       branches, check each one (current value is signed, and is a descendant
+       of a previously accepted value).
+******* we'd prefer to run this during during fetch, just before setting
+        refs/heads/remotes/REMOTE/BRANCH to the new value, where we'd like to
+        abort the assignment on failure.
+******* we could also run it after fetch (but before merge), in which case
+        we'd roll back the REMOTE/BRANCH ref to the previously-accepted value
+******* we can run this during the existing post-merge hook, and learn about
+        historical problems, but if there were any problems, mitigation is
+        tricky
+******* to help with that, the routine should return (last-accepted,
+        current-bad) for each problem branch
+****** second routine is to figure out whether the recent merge was affected
+******* since the post-merge hook runs immediately after each merge, we can
+        use the current branch's reflog to find out its previous value, and
+        at the current revision's parents to figure out it's history
+******* we might also take advantage of knowing this branch's upstream name
+******* we ignore the parent that equals reflog[-1]
+******* then there's a set of merge scenarios:
+******** lots of holes, especially if the user does a bunch of fetches (but
+         not merges, so we don't get control), then merges in some
+         intermediate value
+******** toughest case is probably:
+********* upstream pushes signed values for both branch "master" and branch
+          "evil"
+********* attacker tries to trick user into getting "evil" when merging from
+          master
+********* by the time post-merge happens, we've lost information about what
+          they were trying to merge from. If they did 'git merge
+          origin/evil', then it's fine. If they did 'git merge origin/master'
+          and got the evil rev, then that's an attack.
+********* parentage tells us which revision was being merged, but not the
+          semantics (which branch name was being used)
+********* might glean it from the merge comments? ick.
+***** probably safer to simulate a fetch-hook by using a separate remote
+****** upon install, replace the remote with a special handler, and move the
+       original to e.g. "origin-raw"
+****** the replacement URL would be like "gitlock::origin-raw"
+****** then write a remote-helper for scheme "gitlock" that starts with a
+       normal git-fetch of the raw remote, then checks the branch values
+       before copying them into the processed one.
+****** hm, pushes would need handling too, should just pass-through, but
+       update the branch values.
 
 **** outbound
 ***** DONE script to create signature to stdout, using system-installed ed25519
