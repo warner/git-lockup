@@ -154,8 +154,6 @@
       - git-fetch documents a [url NEWBASE]insteadOf=OLDBASE and
         pushInsteadOf=OLDBASE which can rewrite urls differently for pushes
         and pulls
-***** git config set remote.NAME.vcs ASSURE
-***** then exec(git-remote-ASSURE, NAME, URL)
 ***** would be nice if git exposed its handler for git/ssh/rsync protocols
       - transport.c line 917
         - get_refs_via_connect, fetch_refs_via_pack, git_transport_push,
@@ -165,13 +163,30 @@
        side, and runs git-receive-pack on the far side
 ****** 'git fetch' uses 'git-upload-pack' on the far side and runs
        'git-fetch-pack [host:]repopath' on the near side
+**** easier special-remote (still a hassle):
+***** git config set remote.NAME.vcs ASSURE
+***** then exec(git-remote-ASSURE, REMOTENAME, URL)
+***** our git-remote-ASSURE starts by doing 'git fetch REMOTENAME-raw', let
+      it run to completion
+***** then examine all branches in REMOTENAME-raw, check signatures and
+      parentage, throw exception (exit with rc=1) upon problems, then the
+      real 'git fetch' will report a remote error. Bonus points for getting
+      the error message to stderr.
+***** then we "just" need to implement the real remote operations
+***** easiest is to advertise "connect" capability, then parse URL and
+      simulate git's builtin connection handlers
 ****** if URL happens to be http/https, just exec git-remote-http
+******* do this before interpreting any part of the protocol, let
+        git-remote-http handle everything
 ******* 'git-remote-http' uses http-fetch.c and http-push.c
-****** parse URL, if ssh, exec(ssh host git-receive-pack args..)
-******* requires parsing some bits of URL, maybe check for some .git/config
-        options (using something other than git-receive-pack, etc)
-****** if URL is git:, exec netcat
-
+****** else, need to parse URL (ssh/git/file), advertise "connect", wait for
+       the connect command to be issued with a 'service' argument, then:
+******* if ssh, exec[ssh host git-receive-pack|git-upload-pack (args..?)]
+******** maybe check for some .git/config options (using something other than
+         git-receive-pack, etc)
+******* if git:, exec netcat and maybe send a command name
+******** my flappserver handler (git-remote-pb) does this
+******* if URL is file:, exec[git-(receive|upload)-pack]
 
 *** outbound
 **** DONE script to create signature to stdout, using system-installed ed25519
