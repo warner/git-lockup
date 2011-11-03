@@ -151,6 +151,27 @@
       before copying them into the processed one.
 ***** hm, pushes would need handling too, should just pass-through, but
       update the branch values.
+      - git-fetch documents a [url NEWBASE]insteadOf=OLDBASE and
+        pushInsteadOf=OLDBASE which can rewrite urls differently for pushes
+        and pulls
+***** git config set remote.NAME.vcs ASSURE
+***** then exec(git-remote-ASSURE, NAME, URL)
+***** would be nice if git exposed its handler for git/ssh/rsync protocols
+      - transport.c line 917
+        - get_refs_via_connect, fetch_refs_via_pack, git_transport_push,
+          connect_git, disconnect_git
+      - connect.c line 447 git_connect()
+****** 'git push' uses 'git-send-pack [[user@]host:]repopath' on the near
+       side, and runs git-receive-pack on the far side
+****** 'git fetch' uses 'git-upload-pack' on the far side and runs
+       'git-fetch-pack [host:]repopath' on the near side
+****** if URL happens to be http/https, just exec git-remote-http
+******* 'git-remote-http' uses http-fetch.c and http-push.c
+****** parse URL, if ssh, exec(ssh host git-receive-pack args..)
+******* requires parsing some bits of URL, maybe check for some .git/config
+        options (using something other than git-receive-pack, etc)
+****** if URL is git:, exec netcat
+
 
 *** outbound
 **** DONE script to create signature to stdout, using system-installed ed25519
