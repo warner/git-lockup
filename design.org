@@ -187,6 +187,38 @@
 ******* if git:, exec netcat and maybe send a command name
 ******** my flappserver handler (git-remote-pb) does this
 ******* if URL is file:, exec[git-(receive|upload)-pack]
+**** ok, my git-remote-passthrough is coming together
+***** cases to test:
+****** DONE HELPER::rest_of_url
+****** rsync:
+****** DONE /path/to/local
+****** DONE file:///path/to/local
+****** TODO git://host/path
+       - doesn't work yet, I think the git protocol has an extra message
+****** git://host:port/path
+****** DONE ssh://host/path
+****** DONE ssh://host/~/path
+****** DONE ssh://user@host:port/path
+****** DONE other ssh synonyms: git+ssh, ssh+git
+****** DONE helper://rest
+****** DONE host:path
+        - luther:/tmp/t.git
+****** actual URL values:
+	url = /Users/warner/stuff/vc/git/git-assure/t/one
+	#url = file:///Users/warner/stuff/vc/git/git-assure/t/one
+	#url = luther:/tmp/t.git
+        #url = ssh://luther/tmp/t.git
+        #url = ssh://luther:22/tmp/t.git
+        #url = ssh://warner@luther:22/tmp/t.git
+        #url = ssh://luther/~/t.git
+        #url = ssh://luther/~warner/t.git
+        #url = ssh+git://luther/tmp/t.git
+        #url = git+ssh://luther/tmp/t.git
+        ##url = git://luther:9418/tmp/t.git
+        #url = https://github.com/warner/python-ed25519.git
+        #url = passthrough::https://github.com/warner/python-ed25519.git
+        vcs = passthrough
+
 
 *** outbound
 **** DONE script to create signature to stdout, using system-installed ed25519
