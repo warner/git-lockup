@@ -218,6 +218,49 @@
         #url = https://github.com/warner/python-ed25519.git
         #url = passthrough::https://github.com/warner/python-ed25519.git
         vcs = passthrough
+**** nov-2012, does git make this any easier now?
+***** git-remote-fd lets you set up your remote connection first, attach it
+      to some spare fds, then run 'git fetch fd::12,13' to bypass (manually
+      control) the connection setup phase. It then speaks the git protocol
+      over those fds (or a single bidirectional one).
+***** git-remote-ext is similar, but takes a command to spawn that will
+      create the remote connection (it then speaks the git protocol over
+      stdin/stdout of the child process).
+***** git-remote-helpers is a python library that provides local-repo
+      commands (list-references, get object, etc) to build remotes that
+      manipulate local repos more easily
+***** no post-fetch hook yet.
+***** to simulate a post-fetch hook:
+****** do real fetch to some parallel/related remote
+****** run post-fetch hook (which might raise an error)
+****** copy refs from the parallel remote to the real one
+***** hm. maybe 3 remotes: A,B,C. "A" is the real upstream, so when the merge
+      finally happens, it will pull from A. The URL for A points to our
+      special helper, somehow. When the helper gets control, it first resets
+      all of B's refs to whatever is in C. Then it does a normal 'git fetch
+      B', which grabs everything without checking, then runs the post-fetch
+      hook. If the hook passes, it copies the B refs to C, then copies the B
+      refs to A, then exits with success.
+***** that allows the upstream to be reset without persistently breaking the
+      local copy (C will always be good). Oh, A is enough for that.
+***** two remotes: real, temp. 'real.url' points at the special helper,
+      'temp.url' points at the real remote repo (during setup, just copy
+      real.url into temp.url [for push only]). The magic remote-type in
+      real.url gives control to the helper. The helper overwrites temp's refs
+      with those from 'real', then does 'git fetch temp', then runs the
+      post-fetch hook, then maybe copies the new refs from temp back to real.
+      Maybe even create 'temp' each time, then delete it afterwards. Problem:
+      the top-level git-fetch has to be negated somehow, turned into a NOP.
+***** oh, better: special helper does: copy real refs to temp, 'git fetch
+      temp', run post-fetch hook, then uses the "connect" capability and
+      execs git-upload-pack pointing at the local repo. Modify the
+      read.refspec to pull from refs/remotes/temp/* instead of refs/heads/* .
+      Then the top-level 'git fetch' will do the temp-to-real ref copy, and
+      we don't have to figure out how to NOP it.
+****** all fetches will fetch all branches, unless there's a way to glean the
+       'git fetch' arguments in the remote-helper and pass them into the 'git
+       fetch temp' command. Most likely outcome is limitations on the
+       original 'git fetch' command will be ignored.
 
 
 *** outbound

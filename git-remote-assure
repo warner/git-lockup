@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+
+import sys, os, subprocess
+
+def announce(s):
+    print >>sys.stderr, s
+
+def debug(s):
+    #print >>sys.stderr, s
+    return
+
+def run_command(args, cwd=None, verbose=False):
+    try:
+        # remember shell=False, so use git.cmd on windows, not just git
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
+    except EnvironmentError:
+        e = sys.exc_info()[1]
+        if verbose:
+            debug("unable to run %s" % args[0])
+            debug(e)
+        return None
+    stdout = p.communicate()[0].strip()
+    if sys.version >= '3':
+        stdout = stdout.decode()
+    if p.returncode != 0:
+        if verbose:
+            debug("unable to run %s (error)" % args[0])
+        return None
+    return stdout
+
+def copy_references(from_name, to_name):
+    old_refs = set()
+    new_refs = set()
+    for line in run_command(["git", "branch", "--remote"]).splitlines():
+        line = line.strip()
+        debug(line)
+        if line.startswith("%s/" % to_name):
+            old_refs.add(line.replace("%s/" % to_name, ""))
+        if line.startswith("%s/" % from_name):
+            new_refs.add(line.replace("%s/" % from_name, ""))
+    debug("old_refs=%s" % old_refs)
+    debug("new_refs=%s" % new_refs)
+    for refname in old_refs:
+        run_command(["git", "update-ref", "-d",
+                     "refs/remotes/%s/%s" % (to_name, refname)])
+    for refname in new_refs:
+        ref = run_command(["git", "rev-parse",
+                           "refs/remotes/%s/%s" % (from_name, refname)])
+        run_command(["git", "update-ref",
+                     "refs/remotes/%s/%s" % (to_name, refname),
+                     ref.strip()])
+
+
+debug("ARGS=%s" % (sys.argv,))
+real_remote_name, temp_url = sys.argv[1:3]
+temp_remote_name = temp_url.replace("assure://", "")
+git_dir = os.path.abspath(os.environ["GIT_DIR"])
+debug(git_dir)
+
+while True:
+    command = sys.stdin.readline().strip()
+    debug("COMMAND=%s" % command)
+    if command == "capabilities":
+        print "*connect"
+        print
+        sys.stdout.flush()
+        continue
+
+    if command.startswith("connect"):
+        service = command.split()[1] # for fetching, this is "git-upload-pack"
+        #debug(str(os.environ))
+        if service != "git-upload-pack":
+            print >>sys.stderr, "git-remote-assure can only do 'fetch'"
+            print >>sys.stderr, "but was asked to connect to '%s'" % service
+            sys.exit(1)
+
+        # first we copy the existing references into the temp remote, so it
+        # always starts from the current real state
+        copy_references(real_remote_name, temp_remote_name)
+        debug("copied refs")
+        debug("fetching new refs")
+        # then fetch the real references into the temp remote
+        run_command(["git", "fetch", "origin-temp"])
+        debug("fetched refs")
+
+        # then run the pre-fetch hook, allowing it to judge the temp remote
+        hook = os.path.join(git_dir, "hooks", "post-fetch")
+        if os.access(hook, os.X_OK):
+            announce("running hook")
+            rc = run_command([hook, real_remote_name, temp_remote_name])
+            if rc == None:
+                announce("post-fetch hook threw error, aborting fetch")
+                sys.exit(1)
+            # post-fetch hook is happy, allow transfer
+
+        # then transfer control to git-upload-pack, allowing the parent git
+        # process to copy references from the temp remote to the real one
+        debug("becoming git-upload-pack")
+        print # this means "connection established"
+        sys.stdout.flush()
+        args = ["git", "upload-pack", os.environ["GIT_DIR"]]
+        os.execlp(args[0], *args)
+        # that never returns
+
+        print >>sys.stderr, "hey, git-upload-pack returned"
+        sys.exit(1) # make it obvious
+    print >>sys.stderr, "Unknown command '%s'" % command
+    sys.exit(1)
