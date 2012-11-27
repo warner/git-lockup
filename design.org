@@ -390,6 +390,13 @@
     tracking branch). The hook can look in the git-assure config to find the
     key+remoterefname mapping, so it knows which to examine and which to
     ignore
+**** [#A] option 1: hook is given the reflist text on stdin, exits with 0 to
+     accept, !=0 to reject
+**** option 2: hook is given raw remote name in argv, must do its own
+     ls-remote, must return reflist text on stdout
+**** option 3: hook gets raw remote name in argv, does its own ls-remote,
+     returns validated subset of reflist on stdout. helper rejects unless
+     every ref that the hook returned matches the reflist it sees.
 *** the helper then needs to pull the right refs into a raw remote, so the
     objects will be local, so the helper doesn't need to implement the
     'fetch' command. It can just spawn 'git fetch --no-tags remote-raw'. This

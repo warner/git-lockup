@@ -9,17 +9,19 @@ def debug(s):
     print >>sys.stderr, s
     return
 
-def run_command(args, cwd=None, verbose=False):
+def run_command(args, cwd=None, stdin="", verbose=False):
     try:
         # remember shell=False, so use git.cmd on windows, not just git
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
+        p = subprocess.Popen(args,
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             cwd=cwd)
     except EnvironmentError:
         e = sys.exc_info()[1]
         if verbose:
             debug("unable to run %s" % args[0])
             debug(e)
         return None
-    stdout = p.communicate()[0].strip()
+    stdout = p.communicate(stdin)[0]
     if sys.version >= '3':
         stdout = stdout.decode()
     if p.returncode != 0:
@@ -28,89 +30,87 @@ def run_command(args, cwd=None, verbose=False):
         return None
     return stdout
 
-def copy_references(from_name, to_name):
-    old_refs = set()
-    new_refs = set()
-    for line in run_command(["git", "branch", "--remote"]).splitlines():
-        line = line.strip()
-        debug(line)
-        if line.startswith("%s/" % to_name):
-            old_refs.add(line.replace("%s/" % to_name, ""))
-        if line.startswith("%s/" % from_name):
-            new_refs.add(line.replace("%s/" % from_name, ""))
-    debug("old_refs=%s" % old_refs)
-    debug("new_refs=%s" % new_refs)
-    for refname in old_refs:
-        run_command(["git", "update-ref", "-d",
-                     "refs/remotes/%s/%s" % (to_name, refname)])
-    for refname in new_refs:
-        ref = run_command(["git", "rev-parse",
-                           "refs/remotes/%s/%s" % (from_name, refname)])
-        run_command(["git", "update-ref",
-                     "refs/remotes/%s/%s" % (to_name, refname),
-                     ref.strip()])
+def get_remote_refs(raw_remote_name):
+    # git-ls-remote returns tab-joined "SHA\tNAME", and we want
+    # space-separated "SHA NAME"
+    tab_text = run_command(["git", "ls-remote", raw_remote_name])
+    space_text = "\n".join([" ".join(line.split())
+                            for line in tab_text.splitlines()])+"\n"
+    return space_text
+
+def run_pre_fetch_hook(git_dir, raw_remote_name, stdin):
+    hook = os.path.join(git_dir, "hooks", "post-fetch")
+    if os.access(hook, os.X_OK):
+        announce("running hook")
+        debug("passing %d bytes to stdin" % len(stdin));
+        rc = run_command([hook, raw_remote_name], stdin=stdin)
+        if rc == None:
+            announce("post-fetch hook threw error, aborting fetch")
+            sys.exit(1)
+        # post-fetch hook is happy, allow transfer
+        announce("post-fetch hook is happy")
+
+def update_raw(raw_remote_name):
+    debug("FETCH_HEAD contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
+    old_FETCH_HEAD = open(".git/FETCH_HEAD", "rb").read()
+    debug("fetching new refs")
+    run_command(["git", "fetch", "--no-tags", "--update-head-ok", raw_remote_name])
+    debug("fetched refs")
+    debug("FETCH_HEAD now contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
+    debug("deleting .git/FETCH_HEAD")
+    try:
+        os.unlink(".git/FETCH_HEAD")
+    except EnvironmentError:
+        pass
 
 
 debug("ARGS=%s" % (sys.argv,))
 real_remote_name, temp_url = sys.argv[1:3]
-temp_remote_name = temp_url.replace("assure://", "")
+raw_remote_name = temp_url.replace("assure://", "")
 git_dir = os.path.abspath(os.environ["GIT_DIR"])
 debug(git_dir)
 
 while True:
     command = sys.stdin.readline().strip()
     debug("COMMAND=%s" % command)
+
+    if command == "":
+        # we're being told to shut down
+        sys.exit(0)
+
     if command == "capabilities":
-        print "*connect"
-        print
+        sys.stdout.write("fetch\n") # commands are 'list' and 'fetch'
+        sys.stdout.write("\n")
         sys.stdout.flush()
         continue
 
-    if command.startswith("connect"):
-        service = command.split()[1] # for fetching, this is "git-upload-pack"
-        #debug(str(os.environ))
-        if service != "git-upload-pack":
-            print >>sys.stderr, "git-remote-assure can only do 'fetch'"
-            print >>sys.stderr, "but was asked to connect to '%s'" % service
-            sys.exit(1)
+    if command == "list":
+        # all the mid-fetch hook work happens now, before we return the
+        # reference list to the "git fetch" driver.
+        all_refs_text = get_remote_refs(raw_remote_name)
+        debug("all refs: '%s'" % (all_refs_text,))
 
-        # first we copy the existing references into the temp remote, so it
-        # always starts from the current real state
-        copy_references(real_remote_name, temp_remote_name)
-        debug("copied refs")
-        debug("FETCH_HEAD contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
-        old_FETCH_HEAD = open(".git/FETCH_HEAD", "rb").read()
-        debug("fetching new refs")
-        # then fetch the real references into the temp remote
-        run_command(["git", "fetch", "--update-head-ok", "origin-temp"])
-        debug("fetched refs")
-        debug("FETCH_HEAD now contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
-        if True:
-            f = open(".git/FETCH_HEAD", "wb")
-            f.write(old_FETCH_HEAD)
-            f.close()
-            debug("replaced FETCH_HEAD now contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
+        # then run the pre-fetch hook, allowing it to judge the raw remote.
+        # This will sys.exit(1) if the hook rejects what it sees.
+        #run_pre_fetch_hook(git_dir, raw_remote_name, all_refs_text+"\n")
 
-        # then run the pre-fetch hook, allowing it to judge the temp remote
-        hook = os.path.join(git_dir, "hooks", "post-fetch")
-        if os.access(hook, os.X_OK):
-            announce("running hook")
-            rc = run_command([hook, real_remote_name, temp_remote_name])
-            if rc == None:
-                announce("post-fetch hook threw error, aborting fetch")
-                sys.exit(1)
-            # post-fetch hook is happy, allow transfer
+        # now fetch all objects into a separate -raw remote, so that the
+        # parent fetch won't need us to provide any actual objects.
+        update_raw(raw_remote_name)
 
-        # then transfer control to git-upload-pack, allowing the parent git
-        # process to copy references from the temp remote to the real one
-        debug("becoming git-upload-pack")
-        print # this means "connection established"
+        debug("returning full ref list")
+        # now return the full reflist
+        sys.stdout.write(all_refs_text)
+        # abc123.. HEAD
+        # abc123.. refs/heads/master
+        sys.stdout.write("\n") # terminates the list
         sys.stdout.flush()
-        args = ["git", "upload-pack", os.environ["GIT_DIR"]]
-        os.execlp(args[0], *args)
-        # that never returns
+        debug("finished returning full ref list")
+        continue
 
-        print >>sys.stderr, "hey, git-upload-pack returned"
-        sys.exit(1) # make it obvious
+    if command.startswith("fetch"):
+        announce("Hey, don't fetch, you should already have everything")
+        sys.exit(1)
+
     print >>sys.stderr, "Unknown command '%s'" % command
     sys.exit(1)
