@@ -285,3 +285,42 @@
    ancestor of the new proposed version. Git takes care of the rest.
 
 
+* studying fetch.c
+** do_fetch()
+*** get_ref_map()
+*** fetch_refs()
+**** transport_fetch_refs
+**** store_updated_refs() writes the file
+** ok, I think the problem is that the [branch "master"].remote and .merge
+   pair don't point at the same thing that [remote "origin"].fetch does
+*** changing .merge to say "refs/remotes/origin-temp/master" works
+*** fetch.c L177 is the relevant section
+*** hm, add_merge_config() is probably more relevant
+* hrm. basic potential strategies:
+** allow the merge to happen, use the post-merge hook to examine the results,
+   use the reflog to roll back if denied.
+*** cons: uncommitted changes more likely to be lost, reflog pollution,
+    working tree thrash
+** get control with a remote-helper
+*** pros: everything happens pre-merge, so no reflog pollution
+*** then 1: fetch upstream with an alternative remote, examine, copy to real
+    remote by passing through to "git upload-pack ." and pointing config's
+    remote.fetch at refs/remotes/ALT
+**** cons: using a remote.fetch like that doesn't update the right stuff
+*** then 2: fetch with real remote, examine, throw exception on reject
+**** cons
+***** tracking branches are left with evil data,
+****** but, they'll be updated by a subsequent fetch
+***** subsequent manual merge would accept evil
+***** tracking branches don't provide a handy "what was good" blessed history
+      to prevent replay attacks (but the real local branch provides that)
+*** then 3: fetch with real remote, examine, roll back and throw exception on
+    reject
+**** leaves tracking branches in a better state, and can be used for blessed
+     history
+*** but, how to get the real remote to work?
+**** in the protocol handler, we can run a recursive 'git fetch' with the
+     real URL on the same remote.. that will populate the tracking branches.
+**** then examine+reject
+**** but then how can we let the original fetch succeed and populate
+     FETCH_HEAD correctly?
