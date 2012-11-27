@@ -296,6 +296,15 @@
 *** changing .merge to say "refs/remotes/origin-temp/master" works
 *** fetch.c L177 is the relevant section
 *** hm, add_merge_config() is probably more relevant
+** hm, $GIT_TRANSPORT_HELPER_DEBUG=1 enables remote-helper debug messages (in
+   transport-helper.c)
+** transport dispatch is in transport.c:transport_get (line 912)
+*** explicit helper (config .vcs or url=HELPER::stuff) is handled first
+*** then rsync: is dispatched to native code (get_refs_via_rsync, etc)
+*** then local/file is dispatched natively (get_refs_from_bundle/etc)
+*** then builtin smart transports are checked (non-url, file:, git:, ssh:)
+*** then unknown protocols are dispatched to external helper
+*** so: rsync/local/git/ssh can't be reached from outside 'git fetch'
 * hrm. basic potential strategies:
 ** allow the merge to happen, use the post-merge hook to examine the results,
    use the reflog to roll back if denied.
@@ -323,4 +332,70 @@
      real URL on the same remote.. that will populate the tracking branches.
 **** then examine+reject
 **** but then how can we let the original fetch succeed and populate
-     FETCH_HEAD correctly?
+     FETCH_HEAD correctly? need to let the protocol-handler do *something*
+*** then 4: fetch with alternate remote, examine, then transform into a
+    non-connect protocol helper. When the driver asks for what references the
+    far side holds, respond with the refs that were just fetched (under their
+    remote names, e.g. refs/heads/master). With luck, the driver will then
+    stop talking, because those refs are already present in the alternate
+    remote.
+**** can use 'git ls-remote' to get the remote refs in exactly the same
+     format that the protocol-helper "list" command wants
+**** ah, but that introduces a TOUTTOC bug
+**** so, need to fetch the canonical remote-ref list first, then populate the
+     raw remote (with 'git fetch', hopefully with the same thing, but we
+     don't rely on it), then examine refs from the canonical list, then
+     return the canonical list
+**** could we do the verification with just the list of refs? Only if we give
+     up on replay defense (which needs to know the ancestry relationships
+     between a previously-valid value and the new proposed value).
+***** oh, actually, what we really need to know is that the proposed value is
+      new (not in the known history). The upstream publisher will only sign
+      things that are descendants, so any signed+new value must be a
+      descendant of our most-recent blessed value. Then we *don't* need to
+      pull everything first. Much easier.
+***** also means the post-fetch hook isn't really post-fetch: it only gets to
+      see the proposed new refs, and cannot examine the history or the actual
+      tree/file contents.
+***** if the hook wants to look deeper, it can manually fetch each proposed
+      ref
+**** ok, so ls-remote gets a full list of refs. Which ones will we care
+     about?
+***** style 1: validate during 'git fetch', bad references won't even get
+      added to the remote-tracking branch. This enables arbitrary git
+      pull/fetch/merge operations. This can use protocol helpers to get
+      control in the middle of the fetch. The virtual hook we're providing
+      would be called "pre-fetch" or "post-fetch with rejection abilities",
+      or maybe "mid-fetch" if it only gets to see the refs and not the actual
+      contents.
+****** If we do it this way, we really need to roll back the tracking
+       branches upon error, otherwise discrete 'git fetch; git merge'
+       commands won't protect the user ('git fetch && git merge' would).
+****** ah, but if we throw at the midpoint, the fetch will fail, and the
+       tracking branches won't ever be updated.
+***** style 2: validate during 'git merge', remote-tracking branches will
+      have bad refs but they don't be merged into local branches. This only
+      protects users during the merge step. We have fewer hooks to implement
+      this (post-merge, which would need the reflog-based
+      rollback-on-rejection scheme). The virtual hook could be called
+      "pre-merge" since it effectively gets to reject merges.
+***** Maybe the git-assure config should associated a key with each refname
+      ("key-abc123.. refs/heads/master"), rather than associated keys with
+      local tracking branch names.
+** go with mid-fetch:
+*** get control with a protocol helper
+*** the helper does a ls-remote, gets the ref list, passes to the hook for
+    judgement. If the hook needs more information than just the reference
+    value, it must fetch individual refs (and must not modify the real
+    tracking branch). The hook can look in the git-assure config to find the
+    key+remoterefname mapping, so it knows which to examine and which to
+    ignore
+*** the helper then needs to pull the right refs into a raw remote, so the
+    objects will be local, so the helper doesn't need to implement the
+    'fetch' command. It can just spawn 'git fetch --no-tags remote-raw'. This
+    might fetch evil references, but they won't go beyond the raw remote. And
+    the raw remote can be deleted immediately (they won't be gc'ed right
+    away).
+*** then the helper returns the original ls-remote list to the driver, which
+    should then terminate. If the raw fetch didn't supply enough refs, the
+    driver will ask for 'fetch', which will return an error.
