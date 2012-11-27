@@ -53,22 +53,28 @@ def run_pre_fetch_hook(git_dir, remote_name, stdin):
             sys.exit(1)
         debug("post-fetch hook is happy")
 
-def update_raw(url, orig_refspec, remote_name):
+def fetch_objects(url, orig_refspec, remote_name):
+    temp_remote = remote_name + "-assure-temp"
     refspec = orig_refspec.replace("refs/remotes/%s/" % remote_name,
-                                   "refs/remotes/%s-raw/" % remote_name)
-    debug("FETCH_HEAD contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
-    old_FETCH_HEAD = open(".git/FETCH_HEAD", "rb").read()
+                                   "refs/remotes/%s/" % temp_remote)
     debug("fetching new refs")
     run_command(["git", "fetch", "--no-tags", "--update-head-ok", url, refspec],
                 eat_stderr=True)
     debug("fetched refs")
-    debug("FETCH_HEAD now contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
-    debug("deleting .git/FETCH_HEAD")
     try:
         os.unlink(".git/FETCH_HEAD")
     except EnvironmentError:
         pass
-
+    # and delete all the temporary tracking branches
+    temp_refs = set()
+    for line in run_command(["git", "branch", "--remote"]).splitlines():
+        line = line.strip()
+        if line.startswith(temp_remote):
+            temp_refs.add(line.replace("%s/" % temp_remote, ""))
+    for refname in temp_refs:
+        run_command(["git", "update-ref", "-d",
+                     "refs/remotes/%s/%s" % (temp_remote, refname)])
+    debug("deleted temp refs")
 
 debug("ARGS=%s" % (sys.argv,))
 remote_name, url = sys.argv[1:3]
@@ -106,9 +112,9 @@ while True:
         # This will sys.exit(1) if the hook rejects what it sees.
         run_pre_fetch_hook(git_dir, remote_name, all_refs_text+"\n")
 
-        # now fetch all objects into a separate -raw remote, so that the
-        # parent fetch won't need us to provide any actual objects.
-        update_raw(url, refspec, remote_name)
+        # now fetch all objects into a temporary remote, so that the parent
+        # fetch won't need us to provide any actual objects.
+        fetch_objects(url, refspec, remote_name)
 
         debug("returning full ref list")
         # now return the full reflist
