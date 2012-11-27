@@ -42,16 +42,16 @@ def get_remote_refs(url):
                             for line in tab_text.splitlines()])+"\n"
     return space_text
 
-def run_pre_fetch_hook(git_dir, remote_name, stdin):
-    hook = os.path.join(git_dir, "hooks", "post-fetch")
+def run_mid_fetch_hook(git_dir, remote_name, stdin):
+    hook = os.path.join(git_dir, "hooks", "mid-fetch")
     if os.access(hook, os.X_OK):
         debug("running hook")
         debug("passing %d bytes to stdin" % len(stdin));
         rc = run_command([hook, remote_name], stdin=stdin)
         if rc == None:
-            announce("post-fetch hook threw error, aborting fetch")
+            announce("mid-fetch hook threw error, aborting fetch")
             sys.exit(1)
-        debug("post-fetch hook is happy")
+        debug("mid-fetch hook is happy")
 
 def fetch_objects(url, orig_refspec, remote_name):
     temp_remote = remote_name + "-assure-temp"
@@ -108,9 +108,9 @@ while True:
         all_refs_text = get_remote_refs(url)
         debug("all refs: '%s'" % (all_refs_text,))
 
-        # then run the pre-fetch hook, allowing it to judge the raw remote.
+        # then run the mid-fetch hook, allowing it to judge the raw remote.
         # This will sys.exit(1) if the hook rejects what it sees.
-        run_pre_fetch_hook(git_dir, remote_name, all_refs_text+"\n")
+        run_mid_fetch_hook(git_dir, remote_name, all_refs_text+"\n")
 
         # now fetch all objects into a temporary remote, so that the parent
         # fetch won't need us to provide any actual objects.
