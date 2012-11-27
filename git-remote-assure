@@ -6,14 +6,18 @@ def announce(s):
     print >>sys.stderr, s
 
 def debug(s):
-    print >>sys.stderr, s
+    #print >>sys.stderr, s
     return
 
-def run_command(args, cwd=None, stdin="", verbose=False):
+def run_command(args, cwd=None, stdin="", eat_stderr=False, verbose=False):
     try:
         # remember shell=False, so use git.cmd on windows, not just git
+        stderr = None
+        if eat_stderr:
+            stderr = subprocess.PIPE
         p = subprocess.Popen(args,
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=stderr,
                              cwd=cwd)
     except EnvironmentError:
         e = sys.exc_info()[1]
@@ -41,20 +45,20 @@ def get_remote_refs(raw_remote_name):
 def run_pre_fetch_hook(git_dir, raw_remote_name, stdin):
     hook = os.path.join(git_dir, "hooks", "post-fetch")
     if os.access(hook, os.X_OK):
-        announce("running hook")
+        debug("running hook")
         debug("passing %d bytes to stdin" % len(stdin));
         rc = run_command([hook, raw_remote_name], stdin=stdin)
         if rc == None:
             announce("post-fetch hook threw error, aborting fetch")
             sys.exit(1)
-        # post-fetch hook is happy, allow transfer
-        announce("post-fetch hook is happy")
+        debug("post-fetch hook is happy")
 
 def update_raw(raw_remote_name):
     debug("FETCH_HEAD contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
     old_FETCH_HEAD = open(".git/FETCH_HEAD", "rb").read()
     debug("fetching new refs")
-    run_command(["git", "fetch", "--no-tags", "--update-head-ok", raw_remote_name])
+    run_command(["git", "fetch", "--no-tags", "--update-head-ok", raw_remote_name],
+                eat_stderr=True)
     debug("fetched refs")
     debug("FETCH_HEAD now contains: %s" % (run_command(["cat", ".git/FETCH_HEAD"]),))
     debug("deleting .git/FETCH_HEAD")
@@ -92,7 +96,7 @@ while True:
 
         # then run the pre-fetch hook, allowing it to judge the raw remote.
         # This will sys.exit(1) if the hook rejects what it sees.
-        #run_pre_fetch_hook(git_dir, raw_remote_name, all_refs_text+"\n")
+        run_pre_fetch_hook(git_dir, raw_remote_name, all_refs_text+"\n")
 
         # now fetch all objects into a separate -raw remote, so that the
         # parent fetch won't need us to provide any actual objects.
