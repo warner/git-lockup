@@ -406,3 +406,10 @@
 *** then the helper returns the original ls-remote list to the driver, which
     should then terminate. If the raw fetch didn't supply enough refs, the
     driver will ask for 'fetch', which will return an error.
+* setup needed:
+** given a remote name:
+   - set remote.NAME.pushurl = remote.NAME.url
+   - set remote.NAME.url = assure::URL
+   - set remote.NAME.assure = KEY for BRANCH
+     - multiple lines for multiple branches
+   - add .git/hooks/mid-fetch, chmod +x

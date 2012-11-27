@@ -47,10 +47,12 @@ def run_mid_fetch_hook(git_dir, remote_name, stdin):
     if os.access(hook, os.X_OK):
         debug("running hook")
         debug("passing %d bytes to stdin" % len(stdin));
-        rc = run_command([hook, remote_name], stdin=stdin)
-        if rc == None:
+        out = run_command([hook, remote_name], stdin=stdin)
+        if out is None:
             announce("mid-fetch hook threw error, aborting fetch")
             sys.exit(1)
+        if out:
+            sys.stderr.write(out) # hook can debug to its stdout
         debug("mid-fetch hook is happy")
 
 def fetch_objects(url, orig_refspec, remote_name):

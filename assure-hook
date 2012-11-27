@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+# this is installed as a "mid-fetch" hook
+
+import sys, subprocess
+
+def debug(s):
+    #print s
+    return
+
+remote_name = sys.argv[1]
+debug("in hook, working on %s" % (remote_name,))
+
+# these are all of the new upstream refs. We're probably only interested in
+# refs/heads/*, but we'll see everything they've got.
+all_refs = {}
+for line in sys.stdin.readlines():
+    #debug("hook readline got: %s" % line)
+    if not line.strip():
+        break
+    sha, name = line.split()
+    all_refs[name] = sha
+debug("got %d refs" % len(all_refs))
+
+def run_command(args, cwd=None, stdin="", eat_stderr=False, verbose=False):
+    try:
+        # remember shell=False, so use git.cmd on windows, not just git
+        stderr = None
+        if eat_stderr:
+            stderr = subprocess.PIPE
+        p = subprocess.Popen(args,
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=stderr,
+                             cwd=cwd)
+    except EnvironmentError:
+        e = sys.exc_info()[1]
+        if verbose:
+            debug("unable to run %s" % args[0])
+            debug(e)
+        return None
+    stdout = p.communicate(stdin)[0]
+    if sys.version >= '3':
+        stdout = stdout.decode()
+    if p.returncode != 0:
+        if verbose:
+            debug("unable to run %s (error)" % args[0])
+        return None
+    return stdout
+
+# these are the branches we're configured to care about
+keys = {}
+out = run_command(["git", "config", "--get-all",
+                   "remote.%s.assure" % remote_name])
+for line in out.splitlines():
+    key, _, branch = line.strip().split()
+    if "/" not in branch:
+        branch = "refs/heads/"+branch
+    keys[branch] = key
+
+
+if 0:
+    print >>sys.stderr, "HOOK SMASH!"
+    sys.exit(1)
