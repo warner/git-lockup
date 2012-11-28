@@ -5,7 +5,7 @@
 import os, sys, subprocess
 
 def debug(s):
-    print >>sys.stderr, s
+    #print >>sys.stderr, s
     return
 
 def run_command(args, cwd=None, stdin="", eat_stderr=False, verbose=False):
@@ -33,10 +33,8 @@ def run_command(args, cwd=None, stdin="", eat_stderr=False, verbose=False):
         return None
     return stdout
 
-remote_name = sys.argv[1]
+remote_name, url = sys.argv[1:3]
 debug("in hook, working on %s" % (remote_name,))
-url = run_command(["git", "config", "remote.%s.pushurl" % remote_name]).strip()
-url = url.replace("assure::", "")
 
 # these are all of the new upstream refs. We're probably only interested in
 # refs/heads/*, but we'll see everything they've got.
@@ -81,8 +79,8 @@ else:
     os.unlink(".git/FETCH_HEAD")
 
 def get_all_signatures(revid):
-    print >>sys.stderr, "COMMAND", ["git", "show",
-                                    "%s:%s" % (upstream_notes_revid, revid)]
+    #print >>sys.stderr, "COMMAND", ["git", "show",
+    #                                "%s:%s" % (upstream_notes_revid, revid)]
     remote_lines = run_command(["git", "show",
                                 "%s:%s" % (upstream_notes_revid, revid)],
                                eat_stderr=True) or ""
@@ -108,9 +106,9 @@ for branch,key in keys.items():
     proposed_branch_revid = all_refs[branch]
     found_good_signature = False
     signatures = get_all_signatures(proposed_branch_revid)
-    print >>sys.stderr, "SIGS for", branch, proposed_branch_revid, signatures
+    #print >>sys.stderr, "SIGS for", branch, proposed_branch_revid, signatures
     for sigline in signatures:
-        print >>sys.stderr, "SIG", sigline
+        #print >>sys.stderr, "SIG", sigline
         s_body, s_sig, s_key = sigline.split()
         if s_key != key:
             debug("wrong key")
@@ -131,7 +129,3 @@ for branch,key in keys.items():
     if not found_good_signature:
         print >>sys.stderr, "no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid)
         sys.exit(1)
-
-if 0:
-    print >>sys.stderr, "HOOK SMASH!"
-    sys.exit(1)

@@ -406,16 +406,36 @@
 *** then the helper returns the original ls-remote list to the driver, which
     should then terminate. If the raw fetch didn't supply enough refs, the
     driver will ask for 'fetch', which will return an error.
+** to avoid $PATH changes or installation step, need different kind of proxy
+*** intercept the "git" protocol instead of the remote-helper protocol
+*** protocol is more complex, but should have the same basic functions
+*** url = ext::./.git/TOOL REMOTENAME REALURL
+**** quick testing suggests it's executed from the repo basedir, which means
+     the TOOL path we embed can be relative, allowing the repo to be moved
+     around without breakage
+*** git/Documentation/technical/pack-protocol.txt "Reference Discovery" says
+    that the server should respond with "pkt-line stream" of references: each
+    line starts with a 4-char hex (004a) length (including the length
+    length), then the hex revid, then a space, then the refname, then a
+    newline (included in the length, but ignored after unpacking). The first
+    line should also have \0 and a list of space-separated capabilities (all
+    included in the length), but I think my proxy can skip that (older
+    clients wouldn't have it). The last line should be just "0000".
+*** so my proxy can start by running git-ls-remote and run the mid-fetch
+    hook, then report the ref list in the expected format. At that point the
+    client ought to disconnect, with nothing to do.
+
 * setup needed:
 ** given a remote name:
    - set remote.NAME.pushurl = remote.NAME.url
-   - set remote.NAME.url = assure::URL
+   - set remote.NAME.url = ext::.git/TOOL REMOTE URL
    - set remote.NAME.assure = KEY for BRANCH
      - multiple lines for multiple branches
    - add .git/hooks/mid-fetch, chmod +x
+   - add .git/TOOL, chmod+X
 
 * tools to build / things to fix
-** Figure out how to avoid $PATH changes. Using "assure::" searches for
+** DONE Figure out how to avoid $PATH changes. Using "assure::" searches for
    git-remote-assure. I wish git-remote-ext would do it, but no, that's only
    for the "connect" protocol.
 *** maybe there's a .git/config setting to modify $PATH during git commands?
