@@ -40,18 +40,92 @@ def get_remote_refs(url):
     tab_text = run_command(["git", "ls-remote", url])
     return [tuple(line.split()) for line in tab_text.splitlines()]
 
-def run_mid_fetch_hook(git_dir, remote_name, url, stdin):
-    hook = os.path.join(git_dir, "hooks", "mid-fetch")
-    if os.access(hook, os.X_OK):
-        debug("running hook")
-        debug("passing %d bytes to stdin" % len(stdin));
-        out = run_command([hook, remote_name, url], stdin=stdin)
-        if out is None:
-            announce("mid-fetch hook threw error, aborting fetch")
+def validate(git_dir, remote_name, url, all_refs):
+    all_refs = dict([(name, sha) for (sha, name) in all_refs])
+    debug("got %d refs" % len(all_refs))
+
+    # these are the branches we're configured to care about
+    keys = {}
+    out = run_command(["git", "config", "--get-all",
+                       "remote.%s.assure" % remote_name])
+    for line in out.splitlines():
+        key, _, branch = line.strip().split()
+        if "/" not in branch:
+            branch = "refs/heads/"+branch
+        keys[branch] = key
+
+    # update our list of signatures. We use both the local copy and the current
+    # upstream.
+    out = run_command(["git", "rev-parse", "refs/notes/commits"],
+                      eat_stderr=True)
+    if out is None:
+        print >>sys.stderr, "Could not find local refs/notes/commits."
+        print >>sys.stderr, "Maybe you need to pull some."
+        local_notes_revid = None
+    else:
+        local_notes_revid = out.strip()
+
+    out = run_command(["git", "fetch", "--no-tags", url,
+                       "refs/notes/commits"], eat_stderr=False)
+    if out is None:
+        print >>sys.stderr, "Could not find refs/notes/commits in the upstream repo."
+        print >>sys.stderr, "Maybe you (or someone else) needs to push some signatures to it?"
+        upstream_notes_revid = None
+    else:
+        upstream_notes_revid = run_command(["git", "rev-parse", "FETCH_HEAD"]).strip()
+        os.unlink(".git/FETCH_HEAD")
+
+    def get_all_signatures(revid):
+        remote_lines = run_command(["git", "show",
+                                    "%s:%s" % (upstream_notes_revid, revid)],
+                                   eat_stderr=True) or ""
+        local_lines =  run_command(["git", "show",
+                                    "%s:%s" % (local_notes_revid, revid)],
+                                   eat_stderr=True) or ""
+        lines = set()
+        lines.update(remote_lines.splitlines())
+        lines.update(local_lines.splitlines())
+        return [line.replace("assure: ", "")
+                for line in lines
+                if line.startswith("assure:")]
+
+    import ed25519
+
+    for branch,key in keys.items():
+        if branch not in all_refs:
+            # tolerate missing branches. This allows assure= lines to be set up
+            # in the config file before the named branches are actually
+            # published. I *think* this is safe and useful, but could be
+            # convinced otherwise.
+            continue
+        proposed_branch_revid = all_refs[branch]
+        found_good_signature = False
+        signatures = get_all_signatures(proposed_branch_revid)
+        for sigline in signatures:
+            s_body, s_sig, s_key = sigline.split()
+            if s_key != key:
+                debug("wrong key")
+                continue # signed by a key we don't recognize
+            if s_body != ("%s=%s" % (branch, proposed_branch_revid)):
+                debug("wrong branch or wrong revid")
+                continue # talking about the wrong branch or revid
+            vk = ed25519.VerifyingKey(key, prefix="vk0-", encoding="base32")
+            try:
+                vk.verify(s_sig, s_body, prefix="sig0-", encoding="base32")
+                found_good_signature = True
+                debug("good signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
+                break
+            except ed25519.BadSignatureError:
+                debug("bad signature")
+                continue
+
+        if not found_good_signature:
+            print >>sys.stderr, "no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid)
             sys.exit(1)
-        if out:
-            sys.stderr.write(out) # hook can debug to its stdout
-        debug("mid-fetch hook is happy")
+
+    # validation good
+
+
 
 def fetch_objects(url, orig_refspec, remote_name):
     temp_remote = remote_name + "-assure-temp"
@@ -86,15 +160,14 @@ refspec = run_command(["git", "config", "remote.%s.fetch" % remote_name]).strip(
 debug("REFSPEC: %s" % refspec)
 debug("URL: %s" % url)
 
-# all the mid-fetch hook work happens now, before we return the reference
-# list to the "git fetch" driver.
+# use git-ls-remote to obtain the real list of references. We'll do our
+# validation on this list, then return the list to the "git fetch" driver.
 all_refs = get_remote_refs(url)
 debug("all refs: '%s'" % (all_refs,))
 
-# then run the mid-fetch hook, allowing it to judge the raw remote. This will
-# sys.exit(1) if the hook rejects what it sees.
-run_mid_fetch_hook(git_dir, remote_name, url,
-                   "\n".join([" ".join(ref) for ref in all_refs])+"\n")
+# now validate the references. This is the core of git-assure. It will
+# sys.exit(1) if it rejects what it sees.
+validate(git_dir, remote_name, url, all_refs)
 
 # now fetch all objects into a temporary remote, so that the parent fetch
 # won't need us to provide any actual objects.
