@@ -450,7 +450,10 @@
     run-command.c is probably relevant.
 ** rely on $GIT_DIR instead of $cwd
 ** build a python-ed25519 -API -compliant form of the pure-python
-   dholth-ed25519ll code
+   dholth-ed25519ll code, in a single file
+** the pure-python form takes about 20ms to verify a signature.. consider
+   excluding unchanged branches from the signature check, to save time, when
+   there are dozens or hundreds of branches.
 ** build tools to assemble the right scripts from source pieces
 ** consider abandoning the mid-fetch hook and doing everything inside
    git-remote-assure, probably simpler to construct a single file than two
