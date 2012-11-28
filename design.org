@@ -424,6 +424,10 @@
 *** maybe hack it with gitcredentials? you can configure a path to the
     credential helper. But it looks like only C code can request access to
     the credentials API.
+*** if I run the "smart" git protocol, I could use core.gitProxy, or
+    git-remote-ext
+*** look for how libexec/git-core is baked into the search path.
+    run-command.c is probably relevant.
 ** rely on $GIT_DIR instead of $cwd
 ** build a python-ed25519 -API -compliant form of the pure-python
    dholth-ed25519ll code
