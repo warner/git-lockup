@@ -44,7 +44,7 @@
     - 'git fetch origin refs/notes/commits:refs/notes/commits' works
     - but it doesn't seem sticky: normal 'git fetch' doesn't update it
       - ah, probably since the default in .git/config is fetch =
-        +refs/heads/*:refsremotes/origin/*
+        +refs/heads/*:refs/remotes/origin/*
       - may need to add a +refs/notes/commits:refs/notes/commits during setup
     - I think the same is true for push
 *** TODO hm, needs more work. Looks appropriate, but moving them around
@@ -413,3 +413,21 @@
    - set remote.NAME.assure = KEY for BRANCH
      - multiple lines for multiple branches
    - add .git/hooks/mid-fetch, chmod +x
+
+* tools to build / things to fix
+** Figure out how to avoid $PATH changes. Using "assure::" searches for
+   git-remote-assure. I wish git-remote-ext would do it, but no, that's only
+   for the "connect" protocol.
+*** maybe there's a .git/config setting to modify $PATH during git commands?
+    I see entries for difftool and mergetool.TOOL.path
+*** transport-helper.c:get_helper() (line 128) is the relevant bit
+*** maybe hack it with gitcredentials? you can configure a path to the
+    credential helper. But it looks like only C code can request access to
+    the credentials API.
+** rely on $GIT_DIR instead of $cwd
+** build a python-ed25519 -API -compliant form of the pure-python
+   dholth-ed25519ll code
+** build tools to assemble the right scripts from source pieces
+** consider abandoning the mid-fetch hook and doing everything inside
+   git-remote-assure, probably simpler to construct a single file than two
+   separate ones with overlapping contents
