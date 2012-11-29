@@ -431,8 +431,11 @@
    - set remote.NAME.url = ext::.git/TOOL REMOTE URL
    - set remote.NAME.assure = KEY for BRANCH
      - multiple lines for multiple branches
-   - add .git/hooks/mid-fetch, chmod +x
    - add .git/TOOL, chmod+X
+** for publishers, add:
+   - add branch.NAME.assure-key with the signing+verifying keys
+   - add remote.NAME.push refspec that pushes notes too. Default is ":",
+     which means "matching branches".
 
 * tools to build / things to fix
 ** DONE Figure out how to avoid $PATH changes. Using "assure::" searches for

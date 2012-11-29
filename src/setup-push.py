@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import sys, os, subprocess, base64
 
 def from_ascii(s_ascii):
@@ -296,50 +297,26 @@ def get_config(key):
         raise Exception()
     return stdout.strip()
 
-def remove_prefix(s, prefix):
-    if not s.startswith(prefix):
-        return None
-    return s[len(prefix):]
+branch = sys.argv[1]
 
-print "--"
-print "IN POST-COMMIT"
-print "CWD is", os.getcwd()
-for name in sorted(os.environ):
-    if name.startswith("GIT"):
-        print "%s: %s" % (name, os.environ[name])
-print "--"
-rev = run(["git", "rev-parse", "HEAD"]).strip()
-fullbranch = run(["git", "rev-parse", "--symbolic-full-name", "HEAD"]).strip()
-branch = remove_prefix(fullbranch, "refs/heads/")
-if not branch:
-    print "not commiting to refs/heads/ , ignoring"
+# once per repo
+pc = open(".git/hooks/post-commit", "wb")
+pc.write(open("./post-commit.hook","rb").read())
+pc.close()
+os.chmod(".git/hooks/post-commit", int("0755", 8))
+
+# once per remote
+run(["git", "config", "--add", "remote.%s.push", ":"])
+run(["git", "config", "--add", "remote.%s.push", "refs/notes/commits:refs/notes/commits"])
+
+# once per branch
+keykey = "branch.%s.assure-key" % branch
+old_key = get_config(keykey)
+if old_key:
+    print "branch '%s' already has a key configured, ignoring" % branch
     sys.exit(0)
-pieces = branch.split("/")
-if "." in pieces or ".." in pieces:
-    print "scary branch name %s, ignoring" % branch
-    sys.exit(0)
-print "branch:", branch
-print "HEAD:", rev
-msg = "%s=%s" % (fullbranch, rev)
-print "MSG:", msg
 
-keys = get_config("branch.%s.assure-key" % branch)
-if not keys:
-    print "No signing key in .git/config, ignoring"
-    sys.exit(0)
-key_pieces = keys.split()
-if not keys[0].startswith("sk0-"):
-    raise Exception("Unrecognized signing key format")
-sk = from_ascii(remove_prefix(keys[0], "sk0-"))
-if not keys[1].startswith("vk0-"):
-    raise Exception("Unrecognized verifying key format")
-vk = from_ascii(remove_prefix(keys[1], "vk0-"))
-
-sig_and_msg = ed25519_sign(msg, sk)
-sig = sig_and_msg[:32]
-sig_s = "sig0-"+to_ascii(sig)
-line = "assure: %s %s %s" % (msg, sig_s, keys[1])
-print line
-
-run(["git", "notes", "append", "-m", line, rev])
-print "note added"
+keys = ed25519_keypair()
+run(["git", "config", keykey, "sk0-%s vk0-%s" % (to_ascii(keys.sk),
+                                                 to_ascii(keys.vk))])
+print "the post-commit hook will now sign changes on branch '%s'" % branch
