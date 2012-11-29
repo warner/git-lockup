@@ -5,8 +5,8 @@
 
 * usage
   - this package has a bunch of source code, but only creates a single .py
-    output file, "assure"
-  - committers should run "assure setup-push" from inside a .git tree
+    output file, "git-assure"
+  - committers should run "git assure setup-push" from inside a .git tree
     - it will compile python-ed25519 and install a hook script that runs on
       'git push'
     - then it will ask for a key name (usually the name of the project), and
