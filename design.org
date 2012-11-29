@@ -435,7 +435,8 @@
 ** for publishers, add:
    - add branch.NAME.assure-key with the signing+verifying keys
    - add remote.NAME.push refspec that pushes notes too. Default is ":",
-     which means "matching branches".
+     which means "matching branches". Should have two lines, one with ":" and
+     one with "refs/notes/commits:refs/notes/commits"
 
 * tools to build / things to fix
 ** DONE Figure out how to avoid $PATH changes. Using "assure::" searches for
