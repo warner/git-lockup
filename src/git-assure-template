@@ -1,7 +1,26 @@
 #!/usr/bin/python
 
-# more stuff
-# more more
-#<-- abc  
+import os, sys, base64, subprocess
 
-blah
+# I am the globally-installed "git-assure" tool. My commands:
+#  * setup-publish: install publishing tools into the local git tree,
+#                   use them to create a "setup-assure" script for
+#                   subscribers
+
+assure_tool_b64 = """
+#<-- assure_tool_b64
+"""
+
+assure_tool = base64.b64decode(assure_tool_b64)
+
+if sys.argv[1] == "setup-publish":
+    assert os.path.isdir(".git")
+    tool = ".git/assure-tool"
+    f = open(tool, "wb")
+    f.write(assure_tool)
+    f.close()
+    oldmode = os.stat(tool).st_mode & int("07777", 8)
+    newmode = (oldmode | int("0555", 8)) & int("07777", 8)
+    os.chmod(tool, newmode)
+    subprocess.call([tool, "setup-publish", "--create-keypair"])
+    # then maybe execute TOOL subscribe, not sure yet

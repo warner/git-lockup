@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+import os, sys
+
+print "in assure-tool"
+
+# I live in .git/assure-tool, and get installed by one of two paths:
+# * by publishers, when they run "git-assure setup-publish"
+# * by clients, when they run "./setup-assure"
+# I am called in multiple ways:
+# * "assure-tool setup-publish" (by publishers), to prepare a tree for
+#   publishing. This may create a keypair (or ask for an existing signing
+#   key), then modify .git/config and add a post-commit hook, then will
+#   create and git-add ./setup-assure, then will advise the user to commit
+#   and push (to make ./setup-assure available to clients)
+# * "assure-tool subscribe" (by setup-assure, run by clients). This modifies
+#   .git/config to run during a fetch, and adds the verifying key
+# * "assure-tool fetch" (during git-fetch, run by clients). This intercepts
+#   the fetch process, examines the remote references, checks their
+#   signatures, and allows the fetch to proceed if they are valid.
+
+##### == BEGIN ed25519 ==
+#<-- ed25519
+##### == END ed25519 ==
+
+
+if sys.argv[1] == "setup-publish":
+    pass
+if sys.argv[1] == "subscribe":
+    pass
+if sys.argv[1] == "fetch":
+    pass

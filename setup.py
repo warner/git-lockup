@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, base64
 from distutils.core import setup
 from distutils.command.build_scripts import build_scripts
 
@@ -31,7 +31,8 @@ The tools require python but no other dependencies.
 commands = versioneer.get_cmdclass().copy()
 commands = {} # disable for now
 
-def construct(source, substitutions):
+substitutions = {}
+def construct(source):
     output = []
     f = open(os.path.join("src", source))
     for line in f.readlines():
@@ -44,22 +45,26 @@ def construct(source, substitutions):
         else:
             output.append(line)
     return "".join(output)
+def add_substitution(name, source):
+    substitutions[name] = construct(source)
+def add_base64_substitution(name, source):
+    substitutions[name] = base64.b64encode(construct(source))+"\n"
 
 
 class my_build_scripts(build_scripts):
     def run(self):
-        #print "TEMPDIR", self.build_temp
-        print "BUILDDIR", self.build_dir
         tempdir = os.path.join(self.build_dir, "temp")
         if not os.path.isdir(tempdir):
             os.makedirs(tempdir)
-        substitutions = {}
-        substitutions["abc"] = "abchere\n"
+
+        add_substitution("ed25519", "ed25519.py")
+        #add_substitution("assure-proxy", "assure-proxy.py")
+        add_base64_substitution("assure_tool_b64", "assure-tool-template")
 
         git_assure = os.path.join(self.build_dir, "temp", "git-assure")
         print "creating", git_assure
         f = open(git_assure, "w")
-        f.write(construct("git-assure-template", substitutions))
+        f.write(construct("git-assure-template"))
         f.close()
 
         # modify self.scripts with the source pathname of scripts to install
