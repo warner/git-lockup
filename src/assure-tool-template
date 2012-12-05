@@ -2,8 +2,6 @@
 
 import os, sys
 
-print "in assure-tool"
-
 # I live in .git/assure-tool, and get installed by one of two paths:
 # * by publishers, when they run "git-assure setup-publish"
 # * by clients, when they run "./setup-assure"
@@ -19,14 +17,28 @@ print "in assure-tool"
 #   the fetch process, examines the remote references, checks their
 #   signatures, and allows the fetch to proceed if they are valid.
 
+# note: don't print anything to stdout, as it is used by the proxy when we're
+# in 'fetch' mode. Use stderr instead.
+
 ##### == BEGIN ed25519 ==
 #<-- ed25519
 ##### == END ed25519 ==
 
+##### == BEGIN common ==
+#<-- common
+##### == END common ==
+
+##### == BEGIN assure-proxy ==
+#<-- assure-proxy
+##### == END assure-proxy ==
+
+
 
 if sys.argv[1] == "setup-publish":
+    #setup_publish(sys.argv[2:])
     pass
 if sys.argv[1] == "subscribe":
-    pass
+    subscribe(sys.argv[2:])
 if sys.argv[1] == "fetch":
-    pass
+    assure_proxy(sys.argv[2:])
+
