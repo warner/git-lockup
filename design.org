@@ -262,7 +262,6 @@
        fetch temp' command. Most likely outcome is limitations on the
        original 'git fetch' command will be ignored.
 
-
 *** outbound
 **** DONE script to create signature to stdout, using system-installed ed25519
 **** DONE then add it to a 'git notes'
@@ -462,3 +461,20 @@
 ** consider abandoning the mid-fetch hook and doing everything inside
    git-remote-assure, probably simpler to construct a single file than two
    separate ones with overlapping contents
+** build the tools in reverse order:
+*** subscriber either clones and then runs ./setup-assure, or pre-installs
+    git-assure and runs "git-assure clone KEY URL"
+**** setup-assure contains an embedded key
+**** Running setup-assure installs .git/TOOL (call it "assure-tool"), then
+     runs "TOOL setup-subscribe"
+**** "TOOL setup-subscribe" modifies .git/config to run "TOOL fetch" on fetch
+*** publisher installs git-assure, runs "git-assure setup-publish"
+**** that installs .git/TOOL
+**** then runs "TOOL setup-suscribe" to perform setup-assure steps
+**** then runs "TOOL setup-publish --create-keypair" for publish-specific
+     parts: creates keypair, creates and git-adds setup-assure, advises to
+     commit and push
+**** (this way, anyone with a checkout can become a publisher by just
+     learning the signing key: they run ".git/TOOL setup-publish" and fill in
+     the key
+*** I build+publish git-assure, from smaller pieces
