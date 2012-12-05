@@ -59,7 +59,7 @@ class my_build_scripts(build_scripts):
         git_assure = os.path.join(self.build_dir, "temp", "git-assure")
         print "creating", git_assure
         f = open(git_assure, "w")
-        f.write(construct("git-assure-header", substitutions))
+        f.write(construct("git-assure-template", substitutions))
         f.close()
 
         # modify self.scripts with the source pathname of scripts to install
