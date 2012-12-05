@@ -464,17 +464,21 @@
 ** build the tools in reverse order:
 *** subscriber either clones and then runs ./setup-assure, or pre-installs
     git-assure and runs "git-assure clone KEY URL"
-**** setup-assure contains an embedded key
+**** setup-assure contains an embedded key (one per branch)
 **** Running setup-assure installs .git/TOOL (call it "assure-tool"), then
-     runs "TOOL setup-subscribe"
-**** "TOOL setup-subscribe" modifies .git/config to run "TOOL fetch" on fetch
+     runs "TOOL subscribe BRANCH KEY"
+**** "TOOL subscribe" modifies .git/config to run "TOOL fetch" on
+     fetch, and to add the verifying key for that branch
 *** publisher installs git-assure, runs "git-assure setup-publish"
-**** that installs .git/TOOL
-**** then runs "TOOL setup-suscribe" to perform setup-assure steps
-**** then runs "TOOL setup-publish --create-keypair" for publish-specific
-     parts: creates keypair, creates and git-adds setup-assure, advises to
-     commit and push
+**** that first installs .git/TOOL
+**** that then runs "TOOL setup-publish --create-keypair" for the
+     publish-specific parts: create keypair, store in .git/config, add
+     post-commit hook (to run "TOOL sign"), create and git-add setup-assure,
+     advise to commit and push
+**** ?then it runs "TOOL subscribe" to perform setup-assure steps
+     - seems useful for shared-publisher arrangements, but requires doing
+       subscriber setup on each branch
 **** (this way, anyone with a checkout can become a publisher by just
      learning the signing key: they run ".git/TOOL setup-publish" and fill in
-     the key
+     the key)
 *** I build+publish git-assure, from smaller pieces
