@@ -57,3 +57,27 @@ def get_config(key):
               (" ".join(cmd), p.returncode)
         raise Exception()
     return stdout.strip()
+
+def get_all_config(key):
+    cmd = ["git", "config", "--get-all", key]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout = p.communicate()[0]
+    if p.returncode == 1:
+        return []
+    if p.returncode != 0:
+        print >>sys.stderr, "Error running '%s': rc=%s" % \
+              (" ".join(cmd), p.returncode)
+        raise Exception()
+    return stdout.splitlines()
+
+def get_config_regexp(regexp):
+    cmd = ["git", "config", "--get-regexp", regexp]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout = p.communicate()[0]
+    if p.returncode == 1:
+        return None
+    if p.returncode != 0:
+        print >>sys.stderr, "Error running '%s': rc=%s" % \
+              (" ".join(cmd), p.returncode)
+        raise Exception()
+    return stdout.splitlines()

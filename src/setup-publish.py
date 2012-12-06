@@ -1,10 +1,5 @@
 
-import base64
-
-post_commit_b64 = """
-#<-- post-commit-b64
-"""
-post_commit = base64.b64decode(post_commit_b64)
+# needs post_commit
 
 def setup_publish(args):
     create_keypair = False
@@ -32,18 +27,29 @@ def setup_publish(args):
     set_hook()
 
     # once per remote
-    run_command(["git", "config", "--add", "remote.%s.push" % remote, ":"])
-    run_command(["git", "config", "--add", "remote.%s.push" % remote,
-                 "refs/notes/commits:refs/notes/commits"])
+    pushes = get_all_config("remote.%s.push" % remote)
+    if not pushes:
+        run_command(["git", "config", "--add", "remote.%s.push" % remote, ":"])
+    notes_push = "refs/notes/commits:refs/notes/commits"
+    if notes_push not in pushes:
+        run_command(["git", "config", "--add", "remote.%s.push" % remote,
+                     notes_push])
+    # set pushurl to url without the ext:: stuff
+    old_pushurl = get_config("remote.%s.pushurl" % remote)
+    if not old_pushurl:
+        url = get_config("remote.%s.url" % remote)
+        url.replace("ext::.git/assure-tool fetch %s " % remote, "")
+        run_command(["git", "config", "remote.%s.pushurl" % remote, url])
 
     # once per branch
-    keykey = "branch.%s.assure-key" % branch
+    keykey = "branch.%s.assure-sign-key" % branch
     old_key = get_config(keykey)
     if old_key:
         print "branch '%s' already has a key configured, ignoring" % branch
-        sys.exit(0)
-
-    keys = ed25519_keypair()
-    run_command(["git", "config", keykey,
-                 "sk0-%s vk0-%s" % (to_ascii(keys.sk), to_ascii(keys.vk))])
-    print "the post-commit hook will now sign changes on branch '%s'" % branch
+        sk = from_ascii(remove_prefix(old_key, "sk0-"))
+    else:
+        sk = ed25519_create_signing_key()
+        run_command(["git", "config", keykey, "sk0-%s" % to_ascii(sk)])
+        print "the post-commit hook will now sign changes on branch '%s'" % branch
+    vk = ed25519_create_verifying_key(sk)
+    print "verifykey: vk0-%s" % to_ascii(vk)

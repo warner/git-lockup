@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys
+import os, sys, base64
 
 # I live in .git/assure-tool, and get installed by one of two paths:
 # * by publishers, when they run "git-assure setup-publish"
@@ -32,6 +32,16 @@ import os, sys
 #<-- common
 ##### == END common ==
 
+##### == BEGIN setup-client ==
+#<-- setup-client
+##### == END setup-client ==
+
+# used by both setup-publish and report
+post_commit_b64 = """
+#<-- post-commit-b64
+"""
+post_commit = base64.b64decode(post_commit_b64)
+
 ##### == BEGIN setup-publish ==
 #<-- setup-publish
 ##### == END setup-publish ==
@@ -44,14 +54,22 @@ import os, sys
 #<-- sign
 ##### == END sign ==
 
+##### == BEGIN report ==
+#<-- report
+##### == END report ==
+
 
 
 if sys.argv[1] == "setup-publish":
     setup_publish(sys.argv[2:])
+if sys.argv[1] == "setup-client":
+    setup_client(sys.argv[2:])
 if sys.argv[1] == "subscribe":
     subscribe(sys.argv[2:])
 if sys.argv[1] == "fetch":
     assure_proxy(sys.argv[2:])
 if sys.argv[1] == "post-commit":
     sign(sys.argv[2:])
+if sys.argv[1] == "report":
+    report(sys.argv[2:])
 
