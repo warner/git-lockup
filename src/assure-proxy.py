@@ -1,4 +1,6 @@
 
+import re
+
 ## needs common tools like announce(), debug(), run_command()
 
 def assure_proxy(args):
@@ -14,13 +16,16 @@ def assure_proxy(args):
 
         # these are the branches we're configured to care about
         keys = {}
-        out = run_command(["git", "config", "--get-all",
-                           "remote.%s.assure" % remote_name])
-        for line in out.splitlines():
-            key, _, branch = line.strip().split()
+        keylines = get_config_regexp(r"^branch\..*\.assure-key$")
+        for line in keylines:
+            mo = re.search(r'^branch\.([^.]*)\.assure-key\s+(\w+)$', line)
+            if not mo:
+                announce("confusing assure-key line: '%s'" % line)
+                continue
+            branch = mo.group(1)
             if "/" not in branch:
                 branch = "refs/heads/"+branch
-            keys[branch] = key
+            keys[branch] = mo.group(2)
 
         # update our list of signatures. We use both the local copy and the
         # current upstream.
