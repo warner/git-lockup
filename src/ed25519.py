@@ -203,12 +203,8 @@ def Ed25519():
 
     import os
 
-    PUBLICKEYBYTES=32
-    SECRETKEYBYTES=64
-    SIGNATUREBYTES=64
-
     def create_signing_key():
-        seed = os.urandom(PUBLICKEYBYTES)
+        seed = os.urandom(32)
         return seed
     def create_verifying_key(signing_key):
         return publickey(signing_key)
@@ -216,23 +212,23 @@ def Ed25519():
     def sign(skbytes, msg):
         """Return just the signature, given the message and just the secret
         key."""
-        if len(skbytes) != SECRETKEYBYTES:
+        if len(skbytes) != 32:
             raise ValueError("Bad signing key length %d" % len(skbytes))
         vkbytes = create_verifying_key(skbytes)
         sig = signature(msg, skbytes, vkbytes)
         return sig
 
     def verify(vkbytes, sig, msg):
-        if len(vkbytes) != PUBLICKEYBYTES:
+        if len(vkbytes) != 32:
             raise ValueError("Bad verifying key length %d" % len(vkbytes))
-        if len(sig) != SIGNATUREBYTES:
+        if len(sig) != 64:
             raise ValueError("Bad signature length %d" % len(sig))
         rc = checkvalid(sig, msg, vkbytes)
         if not rc:
             raise ValueError("rc != 0", rc)
         return True
 
-    return (create_signing_key, create_verifying_key), ign, verify)
+    return (create_signing_key, create_verifying_key, sign, verify)
 
 (ed25519_create_signing_key, ed25519_create_verifying_key,
  ed25519_sign, ed25519_verify) = Ed25519()

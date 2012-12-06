@@ -31,14 +31,14 @@ def sign(args):
     if not keys:
         print "No signing key in .git/config, ignoring"
         sys.exit(0)
-    key_pieces = keys.split()
-    if not keys[0].startswith("sk0-"):
+    if not keys.startswith("sk0-"):
         raise Exception("Unrecognized signing key format")
-    sk = from_ascii(remove_prefix(keys[0], "sk0-"))
+    sk = from_ascii(remove_prefix(keys, "sk0-"))
+    vk = "vk0-" + to_ascii(ed25519_create_verifying_key(sk))
 
     sig = ed25519_sign(sk, msg)
     sig_s = "sig0-"+to_ascii(sig)
-    line = "assure: %s %s %s" % (msg, sig_s, keys[1])
+    line = "assure: %s %s %s" % (msg, sig_s, vk)
     print line
 
     run_command(["git", "notes", "append", "-m", line, rev])

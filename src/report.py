@@ -43,7 +43,9 @@ def report(args):
             configured = True
             signkey = get_config("branch.%s.assure-sign-key" % branch)
             if signkey:
-                desc.append("will sign")
+                sk = from_ascii(remove_prefix(signkey, "sk0-"))
+                vk_s = "vk0-"+to_ascii(ed25519_create_verifying_key(sk))
+                desc.append("will sign (%s)" % vk_s)
             verifykeys = get_all_config("branch.%s.assure-key" % branch)
             for key in set(verifykeys):
                 desc.append("will verify (%s)" % key)
