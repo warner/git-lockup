@@ -53,3 +53,6 @@ def setup_publish(args):
         print "the post-commit hook will now sign changes on branch '%s'" % branch
     vk = ed25519_create_verifying_key(sk)
     print "verifykey: vk0-%s" % to_ascii(vk)
+
+    # now create setup-assure, including this. quine!
+
