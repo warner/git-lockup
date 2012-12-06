@@ -35,12 +35,8 @@ def sign(args):
     if not keys[0].startswith("sk0-"):
         raise Exception("Unrecognized signing key format")
     sk = from_ascii(remove_prefix(keys[0], "sk0-"))
-    if not keys[1].startswith("vk0-"):
-        raise Exception("Unrecognized verifying key format")
-    vk = from_ascii(remove_prefix(keys[1], "vk0-"))
 
-    sig_and_msg = ed25519_sign(msg, sk)
-    sig = sig_and_msg[:32]
+    sig = ed25519_sign(sk, msg)
     sig_s = "sig0-"+to_ascii(sig)
     line = "assure: %s %s %s" % (msg, sig_s, keys[1])
     print line

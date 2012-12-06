@@ -80,7 +80,7 @@ def assure_proxy(args):
                 assert s_sig.startswith("sig0-")
                 sig = from_ascii(s_sig.replace("sig0-", ""))
                 try:
-                    ed25519_verify(sig+s_body, vk)
+                    ed25519_verify(vk, sig, s_body)
                     found_good_signature = True
                     debug("good signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
                     break

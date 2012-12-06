@@ -201,55 +201,11 @@ def Ed25519():
         return v1==v2
 
 
-    import warnings
     import os
-
-    from collections import namedtuple
-
-    __all__ = ['crypto_sign', 'crypto_sign_open', 'crypto_sign_keypair', 'Keypair',
-               'PUBLICKEYBYTES', 'SECRETKEYBYTES', 'SIGNATUREBYTES']
 
     PUBLICKEYBYTES=32
     SECRETKEYBYTES=64
     SIGNATUREBYTES=64
-
-    Keypair = namedtuple('Keypair', ('vk', 'sk')) # verifying key, secret key
-
-    def crypto_sign_keypair(seed=None):
-        """Return (verifying, secret) key from a given seed, or os.urandom(32)"""
-        if seed is None:
-            seed = os.urandom(PUBLICKEYBYTES)
-        else:
-            warnings.warn("ed25519ll should choose random seed.",
-                          RuntimeWarning)
-        if len(seed) != 32:
-            raise ValueError("seed must be 32 random bytes or None.")
-        # XXX should seed be constrained to be less than 2**255-19?
-        skbytes = seed
-        vkbytes = publickey(skbytes)
-        return Keypair(vkbytes, skbytes+vkbytes)
-
-
-    def crypto_sign(msg, sk):
-        """Return signature+message given message and secret key.
-        The signature is the first SIGNATUREBYTES bytes of the return value.
-        A copy of msg is in the remainder."""
-        if len(sk) != SECRETKEYBYTES:
-            raise ValueError("Bad signing key length %d" % len(sk))
-        vkbytes = sk[PUBLICKEYBYTES:]
-        skbytes = sk[:PUBLICKEYBYTES]
-        sig = signature(msg, skbytes, vkbytes)
-        return sig + msg
-
-
-    def crypto_sign_open(signed, vk):
-        """Return message given signature+message and the verifying key."""
-        if len(vk) != PUBLICKEYBYTES:
-            raise ValueError("Bad verifying key length %d" % len(vk))
-        rc = checkvalid(signed[:SIGNATUREBYTES], signed[SIGNATUREBYTES:], vk)
-        if not rc:
-            raise ValueError("rc != 0", rc)
-        return signed[SIGNATUREBYTES:]
 
     def create_signing_key():
         seed = os.urandom(PUBLICKEYBYTES)
@@ -257,17 +213,35 @@ def Ed25519():
     def create_verifying_key(signing_key):
         return publickey(signing_key)
 
-    return (crypto_sign_keypair, crypto_sign, crypto_sign_open,
-            create_signing_key, create_verifying_key)
+    def sign(skbytes, msg):
+        """Return just the signature, given the message and just the secret
+        key."""
+        if len(skbytes) != SECRETKEYBYTES:
+            raise ValueError("Bad signing key length %d" % len(skbytes))
+        vkbytes = create_verifying_key(skbytes)
+        sig = signature(msg, skbytes, vkbytes)
+        return sig
 
-(ed25519_keypair, ed25519_sign, ed25519_verify,
- ed25519_create_signing_key, ed25519_create_verifying_key) = Ed25519()
+    def verify(vkbytes, sig, msg):
+        if len(vkbytes) != PUBLICKEYBYTES:
+            raise ValueError("Bad verifying key length %d" % len(vkbytes))
+        if len(sig) != SIGNATUREBYTES:
+            raise ValueError("Bad signature length %d" % len(sig))
+        rc = checkvalid(sig, msg, vkbytes)
+        if not rc:
+            raise ValueError("rc != 0", rc)
+        return True
+
+    return (create_signing_key, create_verifying_key), ign, verify)
+
+(ed25519_create_signing_key, ed25519_create_verifying_key,
+ ed25519_sign, ed25519_verify) = Ed25519()
 
 ## sk = ed25519_create_signing_key()
 ## msg = "hello world"
-## sm = ed25519_sign(msg, sk)
-## print len(sm)
+## sig = ed25519_sign(sk, msg)
+## assert len(sig) == 64
 ## vk = ed25519_create_verifying_key(sk)
-## m2 = ed25519_verify(sm, vk)
-## print "ok", m2 == msg
+## ed25519_verify(vk, sig, msg)
+## print "ok"
 
