@@ -27,7 +27,7 @@ def sign(args):
     msg = "%s=%s" % (fullbranch, rev)
     print "MSG:", msg
 
-    keys = get_config("branch.%s.assure-key" % branch)
+    keys = get_config("branch.%s.assure-sign-key" % branch)
     if not keys:
         print "No signing key in .git/config, ignoring"
         sys.exit(0)
