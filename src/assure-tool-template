@@ -16,9 +16,13 @@ import os, sys
 # * "assure-tool fetch" (during git-fetch, run by clients). This intercepts
 #   the fetch process, examines the remote references, checks their
 #   signatures, and allows the fetch to proceed if they are valid.
+# * "assure-tool post-commit" (during git-commit's post-commit hook, run by
+#   clients). This creates a signature and adds it to the git-notes entry for
+#   the new revision.
 
-# note: don't print anything to stdout, as it is used by the proxy when we're
-# in 'fetch' mode. Use stderr instead.
+# note: don't print anything to stdout at the top-level, as stdout is used by
+# the proxy when we're in 'fetch' mode. Use stderr instead. It is safe to
+# print to stdout form the non-fetch commands, though.
 
 ##### == BEGIN ed25519 ==
 #<-- ed25519
@@ -28,17 +32,26 @@ import os, sys
 #<-- common
 ##### == END common ==
 
+##### == BEGIN setup-publish ==
+#<-- setup-publish
+##### == END setup-publish ==
+
 ##### == BEGIN assure-proxy ==
 #<-- assure-proxy
 ##### == END assure-proxy ==
 
+##### == BEGIN sign ==
+#<-- sign
+##### == END sign ==
+
 
 
 if sys.argv[1] == "setup-publish":
-    #setup_publish(sys.argv[2:])
-    pass
+    setup_publish(sys.argv[2:])
 if sys.argv[1] == "subscribe":
     subscribe(sys.argv[2:])
 if sys.argv[1] == "fetch":
     assure_proxy(sys.argv[2:])
+if sys.argv[1] == "post-commit":
+    sign(sys.argv[2:])
 

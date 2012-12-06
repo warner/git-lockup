@@ -9,6 +9,11 @@ def to_ascii(s_bytes):
     s_ascii = base64.b32encode(s_bytes).rstrip("=").lower()
     return s_ascii
 
+def remove_prefix(s, prefix):
+    if not s.startswith(prefix):
+        return None
+    return s[len(prefix):]
+
 def announce(s):
     print >>sys.stderr, s
 
@@ -40,3 +45,15 @@ def run_command(args, cwd=None, stdin="", eat_stderr=False, verbose=False):
             debug("unable to run %s (error)" % args[0])
         return None
     return stdout
+
+def get_config(key):
+    cmd = ["git", "config", key]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout = p.communicate()[0]
+    if p.returncode == 1:
+        return None
+    if p.returncode != 0:
+        print >>sys.stderr, "Error running '%s': rc=%s" % \
+              (" ".join(cmd), p.returncode)
+        raise Exception()
+    return stdout.strip()

@@ -22,5 +22,5 @@ if sys.argv[1] == "setup-publish":
     oldmode = os.stat(tool).st_mode & int("07777", 8)
     newmode = (oldmode | int("0555", 8)) & int("07777", 8)
     os.chmod(tool, newmode)
-    subprocess.call([tool, "setup-publish", "--create-keypair"])
+    subprocess.call([tool, "setup-publish", "--create-keypair", "master"])
     # then maybe execute TOOL subscribe, not sure yet
