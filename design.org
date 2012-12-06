@@ -473,8 +473,10 @@
 **** that first installs .git/TOOL
 **** that then runs "TOOL setup-publish --create-keypair" for the
      publish-specific parts: create keypair, store in .git/config, add
-     post-commit hook (to run "TOOL sign"), create and git-add setup-assure,
-     advise to commit and push
+     post-commit hook (to run "TOOL sign")
+**** then it creates and git-adds setup-assure, advises to commit and push
+     - by reading out the key in .git/config created by setup-publish
+     - contents of setup-publish include a copy of .git/TOOL
 **** ?then it runs "TOOL subscribe" to perform setup-assure steps
      - seems useful for shared-publisher arrangements, but requires doing
        subscriber setup on each branch
