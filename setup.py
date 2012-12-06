@@ -47,7 +47,9 @@ def construct(source):
 def add_substitution(name, source):
     substitutions[name] = construct(source)
 def add_base64_substitution(name, source):
-    substitutions[name] = base64.b64encode(construct(source))+"\n"
+    b64 = base64.b64encode(construct(source))
+    lines = [b64[i:i+60] for i in range(0, len(b64), 60)]
+    substitutions[name] = "\n".join(lines)+"\n"
 
 
 class my_build_scripts(build_scripts):

@@ -13,14 +13,36 @@ assure_tool_b64 = """
 
 assure_tool = base64.b64decode(assure_tool_b64)
 
-if sys.argv[1] == "setup-publish":
+def make_executable(tool):
+    oldmode = os.stat(tool).st_mode & int("07777", 8)
+    newmode = (oldmode | int("0555", 8)) & int("07777", 8)
+    os.chmod(tool, newmode)
+
+command = None
+if len(sys.argv) > 1:
+    command = sys.argv[1]
+
+if command == "setup-publish":
     assert os.path.isdir(".git")
     tool = ".git/assure-tool"
     f = open(tool, "wb")
     f.write(assure_tool)
     f.close()
-    oldmode = os.stat(tool).st_mode & int("07777", 8)
-    newmode = (oldmode | int("0555", 8)) & int("07777", 8)
-    os.chmod(tool, newmode)
+    make_executable(tool)
     subprocess.call([tool, "setup-publish", "--create-keypair", "master"])
     # then maybe execute TOOL subscribe, not sure yet
+
+elif command == "extract-tool":
+    tool = sys.argv[2]
+    f = open(tool, "wb")
+    f.write(assure_tool)
+    f.close()
+    make_executable(tool)
+
+else:
+    print "unknown command '%s'" % command
+    print "git-assure understands the following commands:"
+    print " setup-publish: run in a git tree, configures for push"
+    print " extract-tool WHERE: writes 'assure-tool' to WHERE"
+    sys.exit(1)
+
