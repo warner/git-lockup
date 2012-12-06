@@ -216,7 +216,7 @@ def Ed25519():
     Keypair = namedtuple('Keypair', ('vk', 'sk')) # verifying key, secret key
 
     def crypto_sign_keypair(seed=None):
-        """Return (verifying, secret) key from a given seed, or os.urandom(32)"""    
+        """Return (verifying, secret) key from a given seed, or os.urandom(32)"""
         if seed is None:
             seed = os.urandom(PUBLICKEYBYTES)
         else:
@@ -248,18 +248,26 @@ def Ed25519():
             raise ValueError("Bad verifying key length %d" % len(vk))
         rc = checkvalid(signed[:SIGNATUREBYTES], signed[SIGNATUREBYTES:], vk)
         if not rc:
-            raise ValueError("rc != 0", rc)    
+            raise ValueError("rc != 0", rc)
         return signed[SIGNATUREBYTES:]
 
+    def create_signing_key():
+        seed = os.urandom(PUBLICKEYBYTES)
+        return seed
+    def create_verifying_key(signing_key):
+        return publickey(signing_key)
 
-    return crypto_sign_keypair, crypto_sign, crypto_sign_open
+    return (crypto_sign_keypair, crypto_sign, crypto_sign_open,
+            create_signing_key, create_verifying_key)
 
-ed25519_keypair, ed25519_sign, ed25519_verify = Ed25519()
+(ed25519_keypair, ed25519_sign, ed25519_verify,
+ ed25519_create_signing_key, ed25519_create_verifying_key) = Ed25519()
 
-## k = ed25519_keypair()
+## sk = ed25519_create_signing_key()
 ## msg = "hello world"
-## sm = ed25519_sign(msg, k.sk)
+## sm = ed25519_sign(msg, sk)
 ## print len(sm)
-## m2 = ed25519_verify(sm, k.vk)
+## vk = ed25519_create_verifying_key(sk)
+## m2 = ed25519_verify(sm, vk)
 ## print "ok", m2 == msg
 
