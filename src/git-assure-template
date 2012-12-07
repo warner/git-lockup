@@ -1,22 +1,45 @@
 #!/usr/bin/python
 
-import os, sys, base64, subprocess
-
 # I am the globally-installed "git-assure" tool. My commands:
 #  * setup-publish: install publishing tools into the local git tree,
 #                   use them to create a "setup-assure" script for
 #                   subscribers
 
+#<-- common
+
 assure_tool_b64 = """
 #<-- assure_tool_b64
 """
 
-assure_tool = base64.b64decode(assure_tool_b64)
+setup_assure_header_b64 = """
+#<-- setup-assure-header-b64
+"""
 
-def make_executable(tool):
-    oldmode = os.stat(tool).st_mode & int("07777", 8)
-    newmode = (oldmode | int("0555", 8)) & int("07777", 8)
-    os.chmod(tool, newmode)
+setup_assure_footer_b64 = """
+#<-- setup-assure-footer-b64
+"""
+
+def generate_setup_assure():
+    # we read .git/config to determine which branches have keys
+    branches = get_config_verifykeys()
+
+    # then generate a middle section that will create a dict with the pubkeys
+    keyconfig = 'branches = {\n'
+    for branch in sorted(branches):
+        shortbranch = remove_prefix(branch, "refs/heads/", True)
+        keyconfig += '  "%s": set([\n' % shortbranch
+        for key in branches[branch]:
+            keyconfig += '    "%s",\n' % key
+        keyconfig += '   ]),\n'
+    keyconfig += '}\n\n'
+
+    # then combine a header, the middle, and a footer, into a program that
+    # will install and configure everything
+    setup_assure = "".join([base64.b64decode(setup_assure_header_b64),
+                            keyconfig,
+                            base64.b64decode(setup_assure_footer_b64)
+                            ])
+    return setup_assure
 
 command = None
 if len(sys.argv) > 1:
@@ -26,16 +49,22 @@ if command == "setup-publish":
     assert os.path.isdir(".git")
     tool = ".git/assure-tool"
     f = open(tool, "wb")
-    f.write(assure_tool)
+    f.write(base64.b64decode(assure_tool_b64))
     f.close()
     make_executable(tool)
+    # this makes a keypair, updates .git/config, and adds a post-commit hook
     subprocess.call([tool, "setup-publish", "--create-keypair", "master"])
+    # then we create ./setup-assure for clients to use
+    f = open("setup-assure", "wb")
+    f.write(generate_setup_assure())
+    f.close()
+    make_executable("setup-assure")
     # then maybe execute TOOL subscribe, not sure yet
 
 elif command == "extract-tool":
     tool = sys.argv[2]
     f = open(tool, "wb")
-    f.write(assure_tool)
+    f.write(base64.b64decode(assure_tool_b64))
     f.close()
     make_executable(tool)
 

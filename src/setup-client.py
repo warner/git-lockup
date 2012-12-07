@@ -1,14 +1,13 @@
 
-def setup_client(args):
-    remote, branch, url, key = args
-
-    ext_url = "ext::.git/assure-tool fetch %s %s" % (remote, url)
-
-    oldurl = get_config("remote.%s.url" % remote)
-    if oldurl and oldurl != ext_url:
-        print "eek, remote '%s' has scary URL '%s'" % (remote, oldurl)
-        sys.exit(1)
+def setup_client(remote, branch, key):
+    rawurl, rawpushurl = set_config_raw_urls(remote)
+    ext_url = "ext::.git/assure-tool fetch %s %s" % (remote, rawurl)
     run_command(["git", "config", "remote.%s.url" % remote, ext_url])
+    # we must make sure pushurl is set too, since our proxy doesn't know how
+    # to push anything. If they already had a pushurl, stick with it.
+    # Otherwise set pushurl equal to the old raw url.
+    if not get_config("remote.%s.pushurl" % remote):
+        run_command(["git", "config", "remote.%s.pushurl" % remote, rawurl])
     print "remote '%s' configured to use verification proxy" % remote
 
     verfkeys = get_all_config("branch.%s.assure-key" % branch)

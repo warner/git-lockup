@@ -21,9 +21,7 @@ def setup_publish(args):
         f = open(pc, "wb")
         f.write(post_commit)
         f.close()
-        oldmode = os.stat(pc).st_mode & int("07777", 8)
-        newmode = (oldmode | int("0555", 8)) & int("07777", 8)
-        os.chmod(pc, newmode)
+        make_executable(pc)
     set_hook()
 
     # once per remote
@@ -34,12 +32,7 @@ def setup_publish(args):
     if notes_push not in pushes:
         run_command(["git", "config", "--add", "remote.%s.push" % remote,
                      notes_push])
-    # set pushurl to url without the ext:: stuff
-    old_pushurl = get_config("remote.%s.pushurl" % remote)
-    if not old_pushurl:
-        url = get_config("remote.%s.url" % remote)
-        url.replace("ext::.git/assure-tool fetch %s " % remote, "")
-        run_command(["git", "config", "remote.%s.pushurl" % remote, url])
+    rawurl, rawpushurl = set_config_raw_urls(remote)
 
     # once per branch
     keykey = "branch.%s.assure-sign-key" % branch

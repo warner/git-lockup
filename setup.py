@@ -36,6 +36,8 @@ def construct(source):
     output = []
     f = open(os.path.join("src", source))
     for line in f.readlines():
+        if line.startswith("#tmp "):
+            continue
         if line.startswith("#<--"):
             name = line.replace("#<--", "").strip()
             if name not in substitutions:
@@ -67,6 +69,8 @@ class my_build_scripts(build_scripts):
         add_substitution("sign", "sign.py")
         add_substitution("report", "report.py")
         add_base64_substitution("assure_tool_b64", "assure-tool-template")
+        add_base64_substitution("setup-assure-header-b64", "setup-assure-template-header")
+        add_base64_substitution("setup-assure-footer-b64", "setup-assure-template-footer")
 
         git_assure = os.path.join(self.build_dir, "temp", "git-assure")
         print "creating", git_assure

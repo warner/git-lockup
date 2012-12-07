@@ -1,0 +1,25 @@
+#tmp -*- python -*-
+
+# footer here, ready to do stuff
+
+#<-- common
+
+assure_tool_b64 = """
+#<-- assure_tool_b64
+"""
+
+#<-- setup-client
+
+# install .git/assure-tool
+assert os.path.isdir(".git")
+tool = ".git/assure-tool"
+f = open(tool, "wb")
+f.write(base64.b64decode(assure_tool_b64))
+f.close()
+make_executable(tool)
+
+for branch,keys in branches.items():
+    remote = get_config("branch.%s.remote" % branch)
+    assert remote
+    for key in keys:
+        setup_client(remote, branch, key)

@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+
+#tmp This template is used by the git-assure tool to create the first third
+#tmp of ./setup-assure . The middle third contains a list of pubkeys and
+#tmp branches, which git-assure creates by looking at .git/config. The last
+#tmp third comes from setup-assure-template-footer, which includes an
+#tmp encoded copy of .git/assure-tool. When ./setup-assure is run by a
+#tmp client (someone who has just cloned the repo and wants to begin
+#tmp protecting their fetches), ./setup-assure will use its encoded copy to
+#tmp create .git/assure-tool, and then use the embedded branch/pubkey list
+#tmp to modify .git/config
+
+# Welcome to git-assure!
+
+# By running this program, your git checkout will be configured to check
+# per-revision signatures every time you fetch new changes. This will
+# ensure that you only get changes from the upstream author of this
+# project, preventing unauthorized commits injected at any intermediate
+# repositories or hosting providers.
+

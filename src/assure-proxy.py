@@ -1,6 +1,4 @@
 
-import re
-
 ## needs common tools like announce(), debug(), run_command()
 
 def assure_proxy(args):
@@ -14,18 +12,7 @@ def assure_proxy(args):
         all_refs = dict([(name, sha) for (sha, name) in all_refs])
         debug("got %d refs" % len(all_refs))
 
-        # these are the branches we're configured to care about
-        keys = {}
-        keylines = get_config_regexp(r"^branch\..*\.assure-key$")
-        for line in keylines:
-            mo = re.search(r'^branch\.([^.]*)\.assure-key\s+(\w+)$', line)
-            if not mo:
-                announce("confusing assure-key line: '%s'" % line)
-                continue
-            branch = mo.group(1)
-            if "/" not in branch:
-                branch = "refs/heads/"+branch
-            keys[branch] = mo.group(2)
+        branch_and_keys = get_config_verifykeys()
 
         # update our list of signatures. We use both the local copy and the
         # current upstream.
@@ -62,7 +49,7 @@ def assure_proxy(args):
                     for line in lines
                     if line.startswith("assure:")]
 
-        for branch,key in keys.items():
+        for branch,keys in keys.items():
             if branch not in all_refs:
                 # tolerate missing branches. This allows assure= lines to be
                 # set up in the config file before the named branches are
@@ -74,14 +61,14 @@ def assure_proxy(args):
             signatures = get_all_signatures(proposed_branch_revid)
             for sigline in signatures:
                 s_body, s_sig, s_key = sigline.split()
-                if s_key != key:
+                if s_key not in keys:
                     debug("wrong key")
                     continue # signed by a key we don't recognize
                 if s_body != ("%s=%s" % (branch, proposed_branch_revid)):
                     debug("wrong branch or wrong revid")
                     continue # talking about the wrong branch or revid
-                assert key.startswith("vk0-")
-                vk = from_ascii(key.replace("vk0-", ""))
+                assert s_key.startswith("vk0-")
+                vk = from_ascii(s_key.replace("vk0-", ""))
                 assert s_sig.startswith("sig0-")
                 sig = from_ascii(s_sig.replace("sig0-", ""))
                 try:

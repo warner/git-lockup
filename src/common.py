@@ -1,4 +1,4 @@
-import sys, os, subprocess, base64
+import re, sys, os, subprocess, base64
 
 def from_ascii(s_ascii):
     s_ascii += "="*((8 - len(s_ascii)%8)%8)
@@ -9,8 +9,10 @@ def to_ascii(s_bytes):
     s_ascii = base64.b32encode(s_bytes).rstrip("=").lower()
     return s_ascii
 
-def remove_prefix(s, prefix):
+def remove_prefix(s, prefix, require_prefix=False):
     if not s.startswith(prefix):
+        if require_prefix:
+            raise ValueError("no prefix '%s' in string '%s'" % (prefix, s))
         return None
     return s[len(prefix):]
 
@@ -20,6 +22,11 @@ def announce(s):
 def debug(s):
     #print >>sys.stderr, s
     return
+
+def make_executable(tool):
+    oldmode = os.stat(tool).st_mode & int("07777", 8)
+    newmode = (oldmode | int("0555", 8)) & int("07777", 8)
+    os.chmod(tool, newmode)
 
 def run_command(args, cwd=None, stdin="", eat_stderr=False, verbose=False):
     try:
@@ -81,3 +88,34 @@ def get_config_regexp(regexp):
               (" ".join(cmd), p.returncode)
         raise Exception()
     return stdout.splitlines()
+
+def get_config_verifykeys():
+    # these are the branches we're configured to care about
+    branches = {} # maps branch name to set of keys
+    keylines = get_config_regexp(r"^branch\..*\.assure-key$")
+    for line in keylines:
+        mo = re.search(r'^branch\.([^.]*)\.assure-key\s+([\w\-]+)$', line)
+        if not mo:
+            announce("confusing assure-key line: '%s'" % line)
+            continue
+        branch = mo.group(1)
+        if "/" not in branch:
+            branch = "refs/heads/"+branch
+        if branch not in branches:
+            branches[branch] = set()
+        branches[branch].add(mo.group(2))
+    return branches
+
+def set_config_raw_urls(remote):
+    rawurl = get_config("remote.%s.assure-raw-url" % remote)
+    rawpushurl = get_config("remote.%s.assure-raw-pushurl" % remote)
+    if not rawurl:
+        rawurl = get_config("remote.%s.url" % remote)
+        assert rawurl
+        rawpushurl = get_config("remote.%s.pushurl" % remote)
+        run_command(["git", "config",
+                     "remote.%s.assure-raw-url" % remote, rawurl])
+        if rawpushurl:
+            run_command(["git", "config",
+                         "remote.%s.assure-raw-pushurl" % remote, rawpushurl])
+    return rawurl, rawpushurl

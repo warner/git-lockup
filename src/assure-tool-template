@@ -63,9 +63,9 @@ post_commit = base64.b64decode(post_commit_b64)
 if sys.argv[1] == "setup-publish":
     setup_publish(sys.argv[2:])
 if sys.argv[1] == "setup-client":
-    setup_client(sys.argv[2:])
-if sys.argv[1] == "subscribe":
-    subscribe(sys.argv[2:])
+    setup_client(sys.argv[2:5])
+#if sys.argv[1] == "subscribe":
+#    SUBSCRIBE(sys.argv[2:])
 if sys.argv[1] == "fetch":
     assure_proxy(sys.argv[2:])
 if sys.argv[1] == "post-commit":
