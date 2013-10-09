@@ -1,7 +1,6 @@
 #+STARTUP: hidestars
 
-* Ensure the validity of your git checkouts
-
+git-assure: Ensure the validity of your git checkouts
 
 * usage
   - this package has a bunch of source code, but only creates a single .py
@@ -28,8 +27,6 @@
     - the public verifying key will be copied out of the source tree into an
       unised .git directory. This prevents it from being modified by git
       operations like 'pull' or 'checkout'.
-
-
 * data storage
 ** ideally put the signatures in the repo with 'git notes', attached to each
    revision
@@ -51,8 +48,6 @@
     requires some care during setup
 ** if that doesn't work, put them in a separate github "Gist", and store the
    repo URL of it next to the pubkey
-
-
 * signature format
 ** one signature per line
 ** message body is like "master=633641174a7bf18e49bdef581d31fdfcc603d39e"
@@ -60,8 +55,6 @@
 ** lines are "assure: BODY SIG KEY", like:
    - assure: master=633641174a7bf18e49bdef581d31fdfcc603d39e sig0-7mul5nbgdghmu4mywgtpjsj3skrxyxcwub7apnunlzcgzyw2awvdcaycfuymvxqvuzijd5hxfxpgeztmjuhvisapcq3aj3utfbk56dq verf0-2gy3ublnkjoeyorb234vkqqajlm5mgej3koepk4hr6aqkmm2wuwq
 ** 'git notes' has provisions to cleanly merge+dedup line-based notes
-
-
 * development
 ** this tree will contain a bunch of source code, and a build step will
    create the one "assure" output file
@@ -261,7 +254,6 @@
        'git fetch' arguments in the remote-helper and pass them into the 'git
        fetch temp' command. Most likely outcome is limitations on the
        original 'git fetch' command will be ignored.
-
 *** outbound
 **** DONE script to create signature to stdout, using system-installed ed25519
 **** DONE then add it to a 'git notes'
@@ -277,13 +269,9 @@
 **** figure out receiver-side installer
 **** figure out sender-side installer
 **** figure out installer-builder
-
-
 * replay protection
 ** if enabled, just assert that the previous value of the branch is an
    ancestor of the new proposed version. Git takes care of the rest.
-
-
 * studying fetch.c
 ** do_fetch()
 *** get_ref_map()
@@ -423,7 +411,6 @@
 *** so my proxy can start by running git-ls-remote and run the mid-fetch
     hook, then report the ref list in the expected format. At that point the
     client ought to disconnect, with nothing to do.
-
 * setup needed:
 ** given a remote name:
    - set remote.NAME.pushurl = remote.NAME.url
@@ -436,7 +423,6 @@
    - add remote.NAME.push refspec that pushes notes too. Default is ":",
      which means "matching branches". Should have two lines, one with ":" and
      one with "refs/notes/commits:refs/notes/commits"
-
 * tools to build / things to fix
 ** DONE Figure out how to avoid $PATH changes. Using "assure::" searches for
    git-remote-assure. I wish git-remote-ext would do it, but no, that's only
@@ -484,3 +470,47 @@
      learning the signing key: they run ".git/TOOL setup-publish" and fill in
      the key)
 *** I build+publish git-assure, from smaller pieces
+** merge setup_assure_header_b64 and _footer_b64. The keyconfig doesn't
+   depend upon the header, so just build keyconfig+setup_assure_b64. The
+   header has only a welcome comment, but since the keyconfig is pretty
+   short, you'd still see the welcome message even if it weren't at the
+   tippy-top of the file.
+** merge git-assure and assure-tool? just invoke it in different ways?
+*** "git-assure setup-publish" needs a copy of git-assure. use argv[0], read
+    its contents, base64-encode, include inside the generated setup-assure
+*** setup-client is included in assure-tool, but unused (only called from
+    setup-assure)
+** change substitution code in setup.py to wrap each interpolated block with
+   "== BEGIN/END $name ==", then remove same from assure-tool-template
+** move .git/config-changing code out of setup-assure and into "assure-tool
+   subscribe". maybe. the fact that this part is driven by the embedded
+   keyconfig suggests otherwise.
+** fewer substitutions. "sign" and "report" are only used in assure-tool
+** in post-commit-hook.template, run "git-assure sign" instead of
+   "assure-tool post-commit", since internally it will run sign() anyways.
+   Likewise the client-side url configuration calls "assure-tool fetch",
+   which internally runs assure_proxy(), and should be renamed to make things
+   easier to follow
+** general approach: build an end-to-end test, then start breaking things
+** change signature code: if pynacl or python-ed25519 is installed globally,
+   use it (faster), but always be able to fall back to the included
+   pure-python version
+** src/assure-proxy.py uses os.unlink(.git/FETCH_HEAD), maybe should use "git
+   update-ref --delete FETCH_HEAD" instead
+* current design (08-Oct-2013)
+** first publisher must have a copy of git-assure
+** they run "git-assure setup-publish" in their project tree
+*** that adds .git/assure-tool
+*** calls .git/assure-tool setup-publish --create-keypair master
+**** that creates a keypair, updates .git/config, adds post-commit hook
+*** then creates ./setup-assure for clients, configured with a verfkey for
+    every branch that has a "branch.NAME.assure-key" in .git/config, and
+    includes a copy of assure-tool
+** subscribers run ./setup-assure
+*** ./setup-assure has the keyconfig from the publisher, plus a copy of
+    assure-tool
+*** adds .git/assure-tool
+*** for each configured branch, calls setup_client() to modify .git/config
+**** set remote.NAME.url to ext::.git/assure-tool fetch REMOTE RAWURL
+**** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
+**** add branch.NAME.assure-key if not already set
