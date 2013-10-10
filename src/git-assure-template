@@ -41,11 +41,19 @@ def generate_setup_assure():
                             ])
     return setup_assure
 
+def print_help():
+    print "git-assure understands the following commands:"
+    print " setup-publish: run in a git tree, configures for push"
+    print " extract-tool WHERE: writes 'assure-tool' to WHERE"
+
 command = None
 if len(sys.argv) > 1:
     command = sys.argv[1]
 
-if command == "setup-publish":
+if command in ("help", "--help"):
+    print_help()
+
+elif command == "setup-publish":
     assert os.path.isdir(".git")
     tool = ".git/assure-tool"
     f = open(tool, "wb")
@@ -70,8 +78,6 @@ elif command == "extract-tool":
 
 else:
     print "unknown command '%s'" % command
-    print "git-assure understands the following commands:"
-    print " setup-publish: run in a git tree, configures for push"
-    print " extract-tool WHERE: writes 'assure-tool' to WHERE"
+    print_help()
     sys.exit(1)
 

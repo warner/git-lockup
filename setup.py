@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, base64
-from distutils.core import setup
+from distutils.core import setup, Command
 from distutils.command.build_scripts import build_scripts
 
 import versioneer
@@ -83,10 +83,19 @@ class my_build_scripts(build_scripts):
         # and adjusted (their shbang line set to sys.executable).
         self.scripts = [git_assure]
         return build_scripts.run(self)
-
-
-
 commands["build_scripts"] = my_build_scripts
+
+class Test(Command):
+    description = "run tests"
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        import test_git_assure
+        test_git_assure.unittest.main(module=test_git_assure, argv=["dummy"])
+commands["test"] = Test
 
 setup(name="git-assure",
       version=versioneer.get_version(),
