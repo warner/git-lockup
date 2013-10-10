@@ -64,11 +64,19 @@ class Create(BasedirMixin, unittest.TestCase):
 
     def test_setup(self):
         self.basedir = self.make_basedir("Create.setup")
-        os.makedirs(self.subpath("one"))
-        print self.subpath("one")
-        self.git("init", subdir="one")
+        upstream = self.subpath("upstream")
+        os.makedirs(upstream)
+        one = self.subpath("one")
+        print upstream, one
+        self.git("init", "--bare", subdir="upstream")
+        self.git("clone", os.path.abspath(upstream), os.path.abspath(one),
+                 workdir=upstream)
         self.add_change()
-        print run_command(["git-assure", "setup-publish"])
+        self.git("push", subdir="one")
+        print run_command(["git-assure", "setup-publish"], one)
+
+        # pyflakes one/.git/assure-tool
+        # pyflakes one/setup-assure
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,17 +35,21 @@ def setup_publish(args):
     rawurl, rawpushurl = set_config_raw_urls(remote)
 
     # once per branch
-    keykey = "branch.%s.assure-sign-key" % branch
-    old_key = get_config(keykey)
+    signkey_key = "branch.%s.assure-sign-key" % branch
+    verfkey_key = "branch.%s.assure-key" % branch
+    old_key = get_config(signkey_key)
     if old_key:
         print "branch '%s' already has a key configured, ignoring" % branch
         sk = from_ascii(remove_prefix(old_key, "sk0-"))
+        vk_s = "vk0-%s" % to_ascii(ed25519_create_verifying_key(sk))
     else:
         sk = ed25519_create_signing_key()
-        run_command(["git", "config", keykey, "sk0-%s" % to_ascii(sk)])
+        sk_s = "sk0-%s" % to_ascii(sk)
+        run_command(["git", "config", signkey_key, sk_s])
         print "the post-commit hook will now sign changes on branch '%s'" % branch
-    vk = ed25519_create_verifying_key(sk)
-    print "verifykey: vk0-%s" % to_ascii(vk)
+        vk_s = "vk0-%s" % to_ascii(ed25519_create_verifying_key(sk))
+        run_command(["git", "config", verfkey_key, vk_s])
+    print "verifykey: %s" % vk_s
 
     # now create setup-assure, including this. quine!
 
