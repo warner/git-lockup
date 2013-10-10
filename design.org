@@ -443,11 +443,11 @@ git-assure: Ensure the validity of your git checkouts
 ** the pure-python form takes about 20ms to verify a signature.. consider
    excluding unchanged branches from the signature check, to save time, when
    there are dozens or hundreds of branches.
-** build tools to assemble the right scripts from source pieces
+** DONE build tools to assemble the right scripts from source pieces
 ** consider abandoning the mid-fetch hook and doing everything inside
    git-remote-assure, probably simpler to construct a single file than two
    separate ones with overlapping contents
-** build the tools in reverse order:
+** DONE build the tools in reverse order:
 *** subscriber either clones and then runs ./setup-assure, or pre-installs
     git-assure and runs "git-assure clone KEY URL"
 **** setup-assure contains an embedded key (one per branch)
@@ -470,6 +470,14 @@ git-assure: Ensure the validity of your git checkouts
      learning the signing key: they run ".git/TOOL setup-publish" and fill in
      the key)
 *** I build+publish git-assure, from smaller pieces
+**
+** setup-publish --create-keypair should set branch.NAME.assure-key in
+   addition to .assure-sign-key : once you start publishing sigs, you should
+   expect sigs back. That will also trigger the setup-assure creation to
+   include those keys
+** TODO maybe put the list of "branches which are supposed to be signed" in a
+   separate file? What happens when you add one later.. should we re-generate
+   setup-assure?
 ** merge setup_assure_header_b64 and _footer_b64. The keyconfig doesn't
    depend upon the header, so just build keyconfig+setup_assure_b64. The
    header has only a welcome comment, but since the keyconfig is pretty
