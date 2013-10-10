@@ -49,7 +49,7 @@ def assure_proxy(args):
                     for line in lines
                     if line.startswith("assure:")]
 
-        for branch,keys in keys.items():
+        for branch,keys in branch_and_keys.items():
             if branch not in all_refs:
                 # tolerate missing branches. This allows assure= lines to be
                 # set up in the config file before the named branches are
@@ -81,7 +81,7 @@ def assure_proxy(args):
                     continue
 
             if not found_good_signature:
-                print >>sys.stderr, "no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid)
+                announce("no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
                 sys.exit(1)
 
         # validation good
