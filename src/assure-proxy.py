@@ -1,87 +1,116 @@
 
 ## needs common tools like announce(), debug(), run_command()
 
-def assure_proxy(args):
-    def validate(git_dir, remote_name, url, all_refs):
-        all_refs = dict([(name, sha) for (sha, name) in all_refs])
-        debug("got %d refs" % len(all_refs))
+def proxy_get_all_signatures(revid, upstream_notes_revid, local_notes_revid):
+    remote_lines = run_command(["git", "show",
+                                "%s:%s" % (upstream_notes_revid, revid)],
+                               eat_stderr=True) or ""
+    local_lines =  run_command(["git", "show",
+                                "%s:%s" % (local_notes_revid, revid)],
+                               eat_stderr=True) or ""
+    lines = set()
+    lines.update(remote_lines.splitlines())
+    lines.update(local_lines.splitlines())
+    return [line.replace("assure: ", "")
+            for line in lines
+            if line.startswith("assure:")]
 
-        branch_and_keys = get_config_verifykeys()
+def proxy_validate(git_dir, remote_name, url, all_refs):
+    all_refs = dict([(name, sha) for (sha, name) in all_refs])
+    debug("got %d refs" % len(all_refs))
 
-        # update our list of signatures. We use both the local copy and the
-        # current upstream.
-        out = run_command(["git", "rev-parse", "refs/notes/commits"],
-                          eat_stderr=True)
-        if out is None:
-            print >>sys.stderr, "Could not find local refs/notes/commits."
-            print >>sys.stderr, "Maybe you need to pull some."
-            local_notes_revid = None
-        else:
-            local_notes_revid = out.strip()
+    branch_and_keys = get_config_verifykeys()
 
-        out = run_command(["git", "fetch", "--no-tags", url,
-                           "refs/notes/commits"], eat_stderr=False)
-        if out is None:
-            print >>sys.stderr, "Could not find refs/notes/commits in the upstream repo."
-            print >>sys.stderr, "Maybe you (or someone else) needs to push some signatures to it?"
-            upstream_notes_revid = None
-        else:
-            upstream_notes_revid = run_command(["git", "rev-parse", "FETCH_HEAD"]).strip()
-            os.unlink(".git/FETCH_HEAD")
+    # update our list of signatures. We use both the local copy and the
+    # current upstream.
+    out = run_command(["git", "rev-parse", "refs/notes/commits"],
+                      eat_stderr=True)
+    if out is None:
+        print >>sys.stderr, "Could not find local refs/notes/commits."
+        print >>sys.stderr, "Maybe you need to pull some."
+        local_notes_revid = None
+    else:
+        local_notes_revid = out.strip()
 
-        def get_all_signatures(revid):
-            remote_lines = run_command(["git", "show",
-                                        "%s:%s" % (upstream_notes_revid, revid)],
-                                       eat_stderr=True) or ""
-            local_lines =  run_command(["git", "show",
-                                        "%s:%s" % (local_notes_revid, revid)],
-                                       eat_stderr=True) or ""
-            lines = set()
-            lines.update(remote_lines.splitlines())
-            lines.update(local_lines.splitlines())
-            return [line.replace("assure: ", "")
-                    for line in lines
-                    if line.startswith("assure:")]
+    out = run_command(["git", "fetch", "--no-tags", url,
+                       "refs/notes/commits"], eat_stderr=False)
+    if out is None:
+        print >>sys.stderr, "Could not find refs/notes/commits in the upstream repo."
+        print >>sys.stderr, "Maybe you (or someone else) needs to push some signatures to it?"
+        upstream_notes_revid = None
+    else:
+        upstream_notes_revid = run_command(["git", "rev-parse", "FETCH_HEAD"]).strip()
+        os.unlink(".git/FETCH_HEAD")
 
-        for branch,keys in branch_and_keys.items():
-            if branch not in all_refs:
-                # tolerate missing branches. This allows assure= lines to be
-                # set up in the config file before the named branches are
-                # actually published. I *think* this is safe and useful, but
-                # could be convinced otherwise.
+    for branch,keys in branch_and_keys.items():
+        if branch not in all_refs:
+            # tolerate missing branches. This allows assure= lines to be
+            # set up in the config file before the named branches are
+            # actually published. I *think* this is safe and useful, but
+            # could be convinced otherwise.
+            continue
+        proposed_branch_revid = all_refs[branch]
+        found_good_signature = False
+        signatures = proxy_get_all_signatures(proposed_branch_revid,
+                                              upstream_notes_revid,
+                                              local_notes_revid)
+        for sigline in signatures:
+            s_body, s_sig, s_key = sigline.split()
+            if s_key not in keys:
+                debug("wrong key")
+                continue # signed by a key we don't recognize
+            if s_body != ("%s=%s" % (branch, proposed_branch_revid)):
+                debug("wrong branch or wrong revid")
+                continue # talking about the wrong branch or revid
+            assert s_key.startswith("vk0-")
+            vk = from_ascii(s_key.replace("vk0-", ""))
+            assert s_sig.startswith("sig0-")
+            sig = from_ascii(s_sig.replace("sig0-", ""))
+            try:
+                ed25519_verify(vk, sig, s_body)
+                found_good_signature = True
+                debug("good signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
+                break
+            except ValueError:
+                debug("bad signature")
                 continue
-            proposed_branch_revid = all_refs[branch]
-            found_good_signature = False
-            signatures = get_all_signatures(proposed_branch_revid)
-            for sigline in signatures:
-                s_body, s_sig, s_key = sigline.split()
-                if s_key not in keys:
-                    debug("wrong key")
-                    continue # signed by a key we don't recognize
-                if s_body != ("%s=%s" % (branch, proposed_branch_revid)):
-                    debug("wrong branch or wrong revid")
-                    continue # talking about the wrong branch or revid
-                assert s_key.startswith("vk0-")
-                vk = from_ascii(s_key.replace("vk0-", ""))
-                assert s_sig.startswith("sig0-")
-                sig = from_ascii(s_sig.replace("sig0-", ""))
-                try:
-                    ed25519_verify(vk, sig, s_body)
-                    found_good_signature = True
-                    debug("good signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
-                    break
-                except ValueError:
-                    debug("bad signature")
-                    continue
 
-            if not found_good_signature:
-                announce("no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
-                sys.exit(1)
+        if not found_good_signature:
+            announce("no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
+            sys.exit(1)
 
-        # validation good
+    # validation good
 
+def proxy_get_remote_refs(url):
+    # git-ls-remote returns tab-joined "SHA\tNAME", and we want to format
+    # it differently. Return a list of (SHA, NAME) tuples.
+    tab_text = run_command(["git", "ls-remote", url])
+    return [tuple(line.split()) for line in tab_text.splitlines()]
 
+def proxy_fetch_objects(url, orig_refspec, remote_name):
+    temp_remote = remote_name + "-assure-temp"
+    refspec = orig_refspec.replace("refs/remotes/%s/" % remote_name,
+                                   "refs/remotes/%s/" % temp_remote)
+    debug("fetching new refs")
+    run_command(["git", "fetch", "--no-tags", "--update-head-ok", url, refspec],
+                eat_stderr=True)
+    debug("fetched refs")
+    try:
+        os.unlink(".git/FETCH_HEAD")
+    except EnvironmentError:
+        pass
+    # and delete all the temporary tracking branches
+    temp_refs = set()
+    for line in run_command(["git", "branch", "--remote"]).splitlines():
+        line = line.strip()
+        if line.startswith(temp_remote):
+            temp_refs.add(line.replace("%s/" % temp_remote, ""))
+    for refname in temp_refs:
+        run_command(["git", "update-ref", "-d",
+                     "refs/remotes/%s/%s" % (temp_remote, refname)])
+    debug("deleted temp refs")
 
+def assure_proxy(args):
     debug("ARGS=%s" % (args,))
     remote_name, url = args[:2]
     git_dir = os.path.abspath(os.environ["GIT_DIR"])
@@ -95,44 +124,17 @@ def assure_proxy(args):
     # use git-ls-remote to obtain the real list of references. We'll do our
     # validation on this list, then return the list to the "git fetch"
     # driver.
-    def get_remote_refs(url):
-        # git-ls-remote returns tab-joined "SHA\tNAME", and we want to format
-        # it differently. Return a list of (SHA, NAME) tuples.
-        tab_text = run_command(["git", "ls-remote", url])
-        return [tuple(line.split()) for line in tab_text.splitlines()]
-    all_refs = get_remote_refs(url)
+    all_refs = proxy_get_remote_refs(url)
     debug("all refs: '%s'" % (all_refs,))
 
     # now validate the references. This is the core of git-assure. It will
     # sys.exit(1) if it rejects what it sees.
-    validate(git_dir, remote_name, url, all_refs)
+    proxy_validate(git_dir, remote_name, url, all_refs)
 
     # now fetch all objects into a temporary remote, so that the parent "git
     # fetch" won't ask us to provide any actual objects. This simplifies our
     # driver considerably.
-    def fetch_objects(url, orig_refspec, remote_name):
-        temp_remote = remote_name + "-assure-temp"
-        refspec = orig_refspec.replace("refs/remotes/%s/" % remote_name,
-                                       "refs/remotes/%s/" % temp_remote)
-        debug("fetching new refs")
-        run_command(["git", "fetch", "--no-tags", "--update-head-ok", url, refspec],
-                    eat_stderr=True)
-        debug("fetched refs")
-        try:
-            os.unlink(".git/FETCH_HEAD")
-        except EnvironmentError:
-            pass
-        # and delete all the temporary tracking branches
-        temp_refs = set()
-        for line in run_command(["git", "branch", "--remote"]).splitlines():
-            line = line.strip()
-            if line.startswith(temp_remote):
-                temp_refs.add(line.replace("%s/" % temp_remote, ""))
-        for refname in temp_refs:
-            run_command(["git", "update-ref", "-d",
-                         "refs/remotes/%s/%s" % (temp_remote, refname)])
-        debug("deleted temp refs")
-    fetch_objects(url, refspec, remote_name)
+    proxy_fetch_objects(url, refspec, remote_name)
 
     debug("returning full ref list")
     # now return the full reflist
