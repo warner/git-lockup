@@ -42,7 +42,11 @@ def construct(source):
             name = line.replace("#<--", "").strip()
             if name not in substitutions:
                 raise ValueError("unrecognized substitution '%s' in '%s'" % (name, source))
+            if not name.endswith("-b64"):
+                output.append("##### == BEGIN %s ==\n" % name)
             output.append(substitutions[name])
+            if not name.endswith("-b64"):
+                output.append("##### == END %s ==\n" % name)
         else:
             output.append(line)
     return "".join(output)
@@ -68,7 +72,7 @@ class my_build_scripts(build_scripts):
         add_substitution("assure-proxy", "assure-proxy.py")
         add_substitution("sign", "sign.py")
         add_substitution("report", "report.py")
-        add_base64_substitution("assure_tool_b64", "assure-tool-template")
+        add_base64_substitution("assure_tool-b64", "assure-tool-template")
         add_base64_substitution("setup-assure-header-b64", "setup-assure-template-header")
         add_base64_substitution("setup-assure-footer-b64", "setup-assure-template-footer")
 

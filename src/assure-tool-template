@@ -24,17 +24,11 @@ import os, sys, base64
 # the proxy when we're in 'fetch' mode. Use stderr instead. It is safe to
 # print to stdout form the non-fetch commands, though.
 
-##### == BEGIN ed25519 ==
 #<-- ed25519
-##### == END ed25519 ==
 
-##### == BEGIN common ==
 #<-- common
-##### == END common ==
 
-##### == BEGIN setup-client ==
 #<-- setup-client
-##### == END setup-client ==
 
 # used by both setup-publish and report
 post_commit_b64 = """
@@ -42,21 +36,13 @@ post_commit_b64 = """
 """
 post_commit = base64.b64decode(post_commit_b64)
 
-##### == BEGIN setup-publish ==
 #<-- setup-publish
-##### == END setup-publish ==
 
-##### == BEGIN assure-proxy ==
 #<-- assure-proxy
-##### == END assure-proxy ==
 
-##### == BEGIN sign ==
 #<-- sign
-##### == END sign ==
 
-##### == BEGIN report ==
 #<-- report
-##### == END report ==
 
 
 

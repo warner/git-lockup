@@ -8,7 +8,7 @@
 #<-- common
 
 assure_tool_b64 = """
-#<-- assure_tool_b64
+#<-- assure_tool-b64
 """
 
 setup_assure_header_b64 = """

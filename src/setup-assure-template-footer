@@ -5,7 +5,7 @@
 #<-- common
 
 assure_tool_b64 = """
-#<-- assure_tool_b64
+#<-- assure_tool-b64
 """
 
 #<-- setup-client
