@@ -91,7 +91,6 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         out = self.run_command(["git-assure", "--help"])
         self.assertIn("git-assure understands the following commands", out)
         self.assertIn("setup-publish: run in a git tree, configures for push", out)
-        self.assertIn("extract-tool WHERE: writes 'assure-tool' to WHERE", out)
 
     def test_setup(self):
         self.basedir = self.make_basedir("Create.setup")

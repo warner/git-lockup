@@ -5,40 +5,106 @@
 #                   use them to create a "setup-assure" script for
 #                   subscribers
 
+# I live in .git/git-assure, and get installed by one of two paths:
+# * by publishers, when they run "git-assure setup-publish"
+# * by clients, when they run "./setup-assure"
+# I am called in multiple ways:
+# * "git-assure setup-publish" (by publishers), to prepare a tree for
+#   publishing. This may create a keypair (or ask for an existing signing
+#   key), then modify .git/config and add a post-commit hook, then will
+#   create and git-add ./setup-assure, then will advise the user to commit
+#   and push (to make ./setup-assure available to clients)
+# * "git-assure subscribe" (by setup-assure, run by clients). This modifies
+#   .git/config to run during a fetch, and adds the verifying key
+# * "git-assure fetch" (during git-fetch, run by clients). This intercepts
+#   the fetch process, examines the remote references, checks their
+#   signatures, and allows the fetch to proceed if they are valid.
+# * "git-assure post-commit" (during git-commit's post-commit hook, run by
+#   clients). This creates a signature and adds it to the git-notes entry for
+#   the new revision.
+
+# note: don't print anything to stdout at the top-level, as stdout is used by
+# the proxy when we're in 'fetch' mode. Use stderr instead. It is safe to
+# print to stdout form the non-fetch commands, though.
+
 #<-- common
 
-assure_tool_b64 = """
-#<-- assure_tool-b64
-"""
+#<-- ed25519
+
+def read_myself():
+    me = os.path.abspath(sys.argv[0])
+    assert me.endswith("git-assure")
+    return open(me, "rb").read()
 
 setup_assure_b64 = """
 #<-- setup-assure-b64
 """
 
-def print_help():
-    print "git-assure understands the following commands:"
-    print " setup-publish: run in a git tree, configures for push"
-    print " extract-tool WHERE: writes 'assure-tool' to WHERE"
+post_commit_b64 = """
+#<-- post-commit-b64
+"""
 
-command = None
-if len(sys.argv) > 1:
-    command = sys.argv[1]
+def setup_publish_set_hook():
+    # once per repo
+    pc = ".git/hooks/post-commit"
+    if os.path.exists(pc):
+        old = open(pc, "rb").read()
+        if old == post_commit:
+            return
+        announce("old .git/hooks/post-commit is in the way")
+        return
+    with open(pc, "wb") as f:
+        f.write(base64.b64decode(post_commit_b64))
+    make_executable(pc)
 
-if command in ("help", "--help"):
-    print_help()
+def setup_publish_config(create_keypair, branch):
+    remote = "origin"
+    setup_publish_set_hook()
 
-elif command == "setup-publish":
+    # once per remote
+    pushes = get_all_config("remote.%s.push" % remote)
+    if not pushes:
+        run_command(["git", "config", "--add", "remote.%s.push" % remote, ":"])
+    notes_push = "refs/notes/commits:refs/notes/commits"
+    if notes_push not in pushes:
+        run_command(["git", "config", "--add", "remote.%s.push" % remote,
+                     notes_push])
+    rawurl, rawpushurl = set_config_raw_urls(remote)
+
+    # once per branch
+    signkey_key = "branch.%s.assure-sign-key" % branch
+    verfkey_key = "branch.%s.assure-key" % branch
+    old_key = get_config(signkey_key)
+    if old_key:
+        print "branch '%s' already has a key configured, ignoring" % branch
+        sk = from_ascii(remove_prefix(old_key, "sk0-"))
+        vk_s = "vk0-%s" % to_ascii(ed25519_create_verifying_key(sk))
+    else:
+        sk = ed25519_create_signing_key()
+        sk_s = "sk0-%s" % to_ascii(sk)
+        run_command(["git", "config", signkey_key, sk_s])
+        print "the post-commit hook will now sign changes on branch '%s'" % branch
+        vk_s = "vk0-%s" % to_ascii(ed25519_create_verifying_key(sk))
+        run_command(["git", "config", verfkey_key, vk_s])
+    print "verifykey: %s" % vk_s
+
+    # now create setup-assure, including this. quine!
+
+def setup_publish():
     assert os.path.isdir(".git")
-    tool = ".git/assure-tool"
-    f = open(tool, "wb")
-    f.write(base64.b64decode(assure_tool_b64))
-    f.close()
+    tool = ".git/git-assure"
+    me = read_myself()
+    with open(tool, "wb") as f:
+        f.write(me)
     make_executable(tool)
     # this makes a keypair, updates .git/config, and adds a post-commit hook
-    subprocess.call([tool, "setup-publish", "--create-keypair", "master"])
-    # then we create ./setup-assure for clients to use
+    setup_publish_config(True, "master")
+    # Then we create ./setup-assure for clients to use. We must insert a copy
+    # of ourselves.
+    setup_assure = base64.b64decode(setup_assure_b64)
+    setup_assure = setup_assure.replace("GIT_ASSURE_B64", base64.b64encode(me))
     with open("setup-assure", "wb") as f:
-        f.write(base64.b64decode(setup_assure_b64))
+        f.write(setup_assure)
     make_executable("setup-assure")
     # along with an assure.config with the branch->key information from
     # .git/config
@@ -53,15 +119,310 @@ elif command == "setup-publish":
 
     # then maybe execute TOOL subscribe, not sure yet
 
-elif command == "extract-tool":
-    tool = sys.argv[2]
-    f = open(tool, "wb")
-    f.write(base64.b64decode(assure_tool_b64))
-    f.close()
-    make_executable(tool)
+def post_commit():
+    # this is called from .git/hooks/post-commit . The post-commit hook gets
+    # no arguments, so neither do we.
+    print "--"
+    print "IN POST-COMMIT"
+    print "CWD is", os.getcwd()
+    for name in sorted(os.environ):
+        if name.startswith("GIT"):
+            print "%s: %s" % (name, os.environ[name])
+    print "--"
+    rev = run_command(["git", "rev-parse", "HEAD"]).strip()
+    fullbranch = run_command(["git", "rev-parse", "--symbolic-full-name", "HEAD"]).strip()
+    branch = remove_prefix(fullbranch, "refs/heads/")
+    if not branch:
+        print "not commiting to refs/heads/ , ignoring"
+        sys.exit(0)
+    pieces = branch.split("/")
+    if "." in pieces or ".." in pieces:
+        print "scary branch name %s, ignoring" % branch
+        sys.exit(0)
+    print "branch:", branch
+    print "HEAD:", rev
+    msg = "%s=%s" % (fullbranch, rev)
+    print "MSG:", msg
 
+    keys = get_config("branch.%s.assure-sign-key" % branch)
+    if not keys:
+        print "No signing key in .git/config, ignoring"
+        sys.exit(0)
+    if not keys.startswith("sk0-"):
+        raise Exception("Unrecognized signing key format")
+    sk = from_ascii(remove_prefix(keys, "sk0-"))
+    vk = "vk0-" + to_ascii(ed25519_create_verifying_key(sk))
+
+    sig = ed25519_sign(sk, msg)
+    sig_s = "sig0-"+to_ascii(sig)
+    line = "assure: %s %s %s" % (msg, sig_s, vk)
+    print line
+
+    run_command(["git", "notes", "append", "-m", line, rev])
+    print "note added"
+
+
+def setup_client(remote, branch, key):
+    rawurl, rawpushurl = set_config_raw_urls(remote)
+    ext_url = "ext::.git/git-assure fetch %s %s" % (remote, rawurl)
+    run_command(["git", "config", "remote.%s.url" % remote, ext_url])
+    # we must make sure pushurl is set too, since our proxy doesn't know how
+    # to push anything. If they already had a pushurl, stick with it.
+    # Otherwise set pushurl equal to the old raw url.
+    if not get_config("remote.%s.pushurl" % remote):
+        run_command(["git", "config", "remote.%s.pushurl" % remote, rawurl])
+    print "remote '%s' configured to use verification proxy" % remote
+
+    verfkeys = get_all_config("branch.%s.assure-key" % branch)
+    if key in verfkeys:
+        print "branch '%s' was already configured to verify with key %s" % (branch, key)
+    else:
+        run_command(["git", "config", "--add", "branch.%s.assure-key" % branch, key])
+        print "branch '%s' configured to verify with key %s" % (branch, key)
+
+## needs common tools like announce(), debug(), run_command()
+
+def proxy_get_all_signatures(revid, upstream_notes_revid, local_notes_revid):
+    remote_lines = run_command(["git", "show",
+                                "%s:%s" % (upstream_notes_revid, revid)],
+                               eat_stderr=True) or ""
+    local_lines =  run_command(["git", "show",
+                                "%s:%s" % (local_notes_revid, revid)],
+                               eat_stderr=True) or ""
+    lines = set()
+    lines.update(remote_lines.splitlines())
+    lines.update(local_lines.splitlines())
+    return [line.replace("assure: ", "")
+            for line in lines
+            if line.startswith("assure:")]
+
+def proxy_validate(git_dir, remote_name, url, all_refs):
+    all_refs = dict([(name, sha) for (sha, name) in all_refs])
+    debug("got %d refs" % len(all_refs))
+
+    branch_and_keys = get_config_verifykeys()
+
+    # update our list of signatures. We use both the local copy and the
+    # current upstream.
+    out = run_command(["git", "rev-parse", "refs/notes/commits"],
+                      eat_stderr=True)
+    if out is None:
+        print >>sys.stderr, "Could not find local refs/notes/commits."
+        print >>sys.stderr, "Maybe you need to pull some."
+        local_notes_revid = None
+    else:
+        local_notes_revid = out.strip()
+
+    out = run_command(["git", "fetch", "--no-tags", url,
+                       "refs/notes/commits"], eat_stderr=False)
+    if out is None:
+        print >>sys.stderr, "Could not find refs/notes/commits in the upstream repo."
+        print >>sys.stderr, "Maybe you (or someone else) needs to push some signatures to it?"
+        upstream_notes_revid = None
+    else:
+        upstream_notes_revid = run_command(["git", "rev-parse", "FETCH_HEAD"]).strip()
+        os.unlink(".git/FETCH_HEAD")
+
+    for branch,keys in branch_and_keys.items():
+        if branch not in all_refs:
+            # tolerate missing branches. This allows assure= lines to be
+            # set up in the config file before the named branches are
+            # actually published. I *think* this is safe and useful, but
+            # could be convinced otherwise.
+            continue
+        proposed_branch_revid = all_refs[branch]
+        found_good_signature = False
+        signatures = proxy_get_all_signatures(proposed_branch_revid,
+                                              upstream_notes_revid,
+                                              local_notes_revid)
+        for sigline in signatures:
+            s_body, s_sig, s_key = sigline.split()
+            if s_key not in keys:
+                debug("wrong key")
+                continue # signed by a key we don't recognize
+            if s_body != ("%s=%s" % (branch, proposed_branch_revid)):
+                debug("wrong branch or wrong revid")
+                continue # talking about the wrong branch or revid
+            assert s_key.startswith("vk0-")
+            vk = from_ascii(s_key.replace("vk0-", ""))
+            assert s_sig.startswith("sig0-")
+            sig = from_ascii(s_sig.replace("sig0-", ""))
+            try:
+                ed25519_verify(vk, sig, s_body)
+                found_good_signature = True
+                debug("good signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
+                break
+            except ValueError:
+                debug("bad signature")
+                continue
+
+        if not found_good_signature:
+            announce("no valid signature found for branch %s (rev %s)" % (branch, proposed_branch_revid))
+            sys.exit(1)
+
+    # validation good
+
+def proxy_get_remote_refs(url):
+    # git-ls-remote returns tab-joined "SHA\tNAME", and we want to format
+    # it differently. Return a list of (SHA, NAME) tuples.
+    tab_text = run_command(["git", "ls-remote", url])
+    return [tuple(line.split()) for line in tab_text.splitlines()]
+
+def proxy_fetch_objects(url, orig_refspec, remote_name):
+    temp_remote = remote_name + "-assure-temp"
+    refspec = orig_refspec.replace("refs/remotes/%s/" % remote_name,
+                                   "refs/remotes/%s/" % temp_remote)
+    debug("fetching new refs")
+    run_command(["git", "fetch", "--no-tags", "--update-head-ok", url, refspec],
+                eat_stderr=True)
+    debug("fetched refs")
+    try:
+        os.unlink(".git/FETCH_HEAD")
+    except EnvironmentError:
+        pass
+    # and delete all the temporary tracking branches
+    temp_refs = set()
+    for line in run_command(["git", "branch", "--remote"]).splitlines():
+        line = line.strip()
+        if line.startswith(temp_remote):
+            temp_refs.add(line.replace("%s/" % temp_remote, ""))
+    for refname in temp_refs:
+        run_command(["git", "update-ref", "-d",
+                     "refs/remotes/%s/%s" % (temp_remote, refname)])
+    debug("deleted temp refs")
+
+def assure_proxy(args):
+    debug("ARGS=%s" % (args,))
+    remote_name, url = args[:2]
+    git_dir = os.path.abspath(os.environ["GIT_DIR"])
+    debug(git_dir)
+
+    # extract the 'fetch' config for the real remote
+    refspec = run_command(["git", "config", "remote.%s.fetch" % remote_name]).strip()
+    debug("REFSPEC: %s" % refspec)
+    debug("URL: %s" % url)
+
+    # use git-ls-remote to obtain the real list of references. We'll do our
+    # validation on this list, then return the list to the "git fetch"
+    # driver.
+    all_refs = proxy_get_remote_refs(url)
+    debug("all refs: '%s'" % (all_refs,))
+
+    # now validate the references. This is the core of git-assure. It will
+    # sys.exit(1) if it rejects what it sees.
+    proxy_validate(git_dir, remote_name, url, all_refs)
+
+    # now fetch all objects into a temporary remote, so that the parent "git
+    # fetch" won't ask us to provide any actual objects. This simplifies our
+    # driver considerably.
+    proxy_fetch_objects(url, refspec, remote_name)
+
+    debug("returning full ref list")
+    # now return the full reflist
+    for (sha,name) in all_refs:
+        line = "%s %s\n" % (sha, name)
+        sys.stdout.write("%04x" % (4+len(line)))
+        sys.stdout.write(line)
+    sys.stdout.write("0000")
+    sys.stdout.flush()
+    debug("finished returning full ref list")
+
+    while True:
+        length = int(sys.stdin.read(4), 16)
+        if length == 0:
+            # graceful disconnect
+            sys.exit(0)
+
+        line = sys.stdin.read(length-4)
+        debug("COMMAND=%s" % line)
+
+        announce("Hey, don't fetch, you should already have everything")
+        sys.exit(1)
+
+def report():
+    print "REPORT"
+
+    # for every branch mentioned in .git/config, report whether we sign
+    # commits, and whether we require signatures. Also check on the proxy
+    # config and the post-commit hook.
+
+    current_branch = None
+    all_branches = set()
+    for line in run_command(["git", "branch", "--list"]).splitlines():
+        name = line.strip("* ")
+        if line.startswith("*"):
+            current_branch = name
+        all_branches.add(name)
+
+    configured_branches = set()
+    for line in get_config_regexp("^branch\."):
+        configured_branches.add(line.split(".")[1])
+
+    remotes = set()
+    for line in get_config_regexp("^remote\."):
+        remotes.add(line.split(".")[1])
+
+    hook_ready = True
+    try:
+        contents = open(".git/hooks/post-commit", "rb").read()
+        if contents != post_commit:
+            print "post-commit hook exists, but differs from what I expected"
+            hook_ready = False
+        if not os.access(".git/hooks/post-commit", os.X_OK):
+            print "post-commit hook exists, but is not executable"
+            hook_ready = False
+    except EnvironmentError:
+        print ".git/hooks/post-commit doesn't exist"
+        hook_ready = False
+    if hook_ready:
+        print "post-commit hook is correct and executable"
+
+    for branch in sorted(all_branches):
+        desc = []
+        if branch in configured_branches:
+            configured = True
+            signkey = get_config("branch.%s.assure-sign-key" % branch)
+            if signkey:
+                sk = from_ascii(remove_prefix(signkey, "sk0-"))
+                vk_s = "vk0-"+to_ascii(ed25519_create_verifying_key(sk))
+                desc.append("will sign (%s)" % vk_s)
+            verifykeys = get_all_config("branch.%s.assure-key" % branch)
+            for key in set(verifykeys):
+                desc.append("will verify (%s)" % key)
+        else:
+            desc.append("no configuration")
+
+        print "branch %s: %s" % (branch, ", ".join(desc))
+
+def print_help():
+    print "git-assure understands the following commands:"
+    print " setup-publish: run in a git tree, configures for push"
+    print " ..."
+
+command = None
+if len(sys.argv) > 1:
+    command = sys.argv[1]
+
+if command in ("help", "--help"):
+    print_help()
+elif command == "setup-publish":
+    setup_publish()
+elif command == "post-commit":
+    post_commit()
+elif command == "setup-client":
+    from ConfigParser import SafeConfigParser
+    config = SafeConfigParser()
+    config.readfp(open("assure.config"))
+    for branch,keys in config.items("branches"):
+        remote = get_config("branch.%s.remote" % branch)
+        assert remote
+        for key in keys.split():
+            setup_client(remote, branch, key)
+elif command == "fetch":
+    assure_proxy(sys.argv[2:])
+elif command == "report":
+    report()
 else:
     print "unknown command '%s'" % command
     print_help()
     sys.exit(1)
-

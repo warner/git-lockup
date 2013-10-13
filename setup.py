@@ -66,13 +66,7 @@ class my_build_scripts(build_scripts):
 
         add_substitution("ed25519", "ed25519.py")
         add_substitution("common", "common.py")
-        add_substitution("setup-client", "setup-client.py")
         add_base64_substitution("post-commit-b64", "post-commit-hook.template")
-        add_substitution("setup-publish", "setup-publish.py")
-        add_substitution("assure-proxy", "assure-proxy.py")
-        add_substitution("sign", "sign.py")
-        add_substitution("report", "report.py")
-        add_base64_substitution("assure_tool-b64", "assure-tool-template")
         add_base64_substitution("setup-assure-b64", "setup-assure-template")
 
         git_assure = os.path.join(self.build_dir, "temp", "git-assure")

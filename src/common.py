@@ -111,10 +111,10 @@ def set_config_raw_urls(remote):
     rawpushurl = get_config("remote.%s.assure-raw-pushurl" % remote)
     if not rawurl:
         rawurl = get_config("remote.%s.url" % remote)
-        assert rawurl
+        if rawurl:
+            run_command(["git", "config",
+                         "remote.%s.assure-raw-url" % remote, rawurl])
         rawpushurl = get_config("remote.%s.pushurl" % remote)
-        run_command(["git", "config",
-                     "remote.%s.assure-raw-url" % remote, rawurl])
         if rawpushurl:
             run_command(["git", "config",
                          "remote.%s.assure-raw-pushurl" % remote, rawpushurl])
