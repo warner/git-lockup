@@ -73,8 +73,7 @@ class my_build_scripts(build_scripts):
         add_substitution("sign", "sign.py")
         add_substitution("report", "report.py")
         add_base64_substitution("assure_tool-b64", "assure-tool-template")
-        add_base64_substitution("setup-assure-header-b64", "setup-assure-template-header")
-        add_base64_substitution("setup-assure-footer-b64", "setup-assure-template-footer")
+        add_base64_substitution("setup-assure-b64", "setup-assure-template")
 
         git_assure = os.path.join(self.build_dir, "temp", "git-assure")
         print "creating", git_assure

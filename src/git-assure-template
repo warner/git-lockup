@@ -11,12 +11,8 @@ assure_tool_b64 = """
 #<-- assure_tool-b64
 """
 
-setup_assure_header_b64 = """
-#<-- setup-assure-header-b64
-"""
-
-setup_assure_footer_b64 = """
-#<-- setup-assure-footer-b64
+setup_assure_b64 = """
+#<-- setup-assure-b64
 """
 
 def print_help():
@@ -42,8 +38,7 @@ elif command == "setup-publish":
     subprocess.call([tool, "setup-publish", "--create-keypair", "master"])
     # then we create ./setup-assure for clients to use
     with open("setup-assure", "wb") as f:
-        f.write(base64.b64decode(setup_assure_header_b64))
-        f.write(base64.b64decode(setup_assure_footer_b64))
+        f.write(base64.b64decode(setup_assure_b64))
     make_executable("setup-assure")
     # along with an assure.config with the branch->key information from
     # .git/config
