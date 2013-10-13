@@ -9,30 +9,58 @@ if not os.path.isdir(scriptdir) or not os.path.exists(ga):
 os.environ["PATH"] = os.pathsep.join([scriptdir]+
                                      os.environ["PATH"].split(os.pathsep))
 
-def run_command(args, cwd=None, verbose=False, hide_stderr=False,
-                must_succeed=True):
-    try:
-        # remember shell=False, so use git.cmd on windows, not just git
-        p = subprocess.Popen(args, cwd=cwd, stdout=subprocess.PIPE,
-                             stderr=(subprocess.PIPE if hide_stderr else None))
-    except EnvironmentError:
-        e = sys.exc_info()[1]
-        if verbose:
+class RunnerMixin:
+    VERBOSE = False
+    def run_command(self, args, cwd=None, verbose=False):
+        # this command is expected to succeed. If it fails, we display
+        # stderr.
+        if verbose or self.VERBOSE:
+            print "COMMAND:", args
+        try:
+            # remember shell=False, so use git.cmd on windows, not just git
+            p = subprocess.Popen(args, cwd=cwd, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        except EnvironmentError:
+            e = sys.exc_info()[1]
             print("unable to run %s" % args[0])
             print(e)
-        if must_succeed:
-            raise ValueError("unable to run %s" % (args,))
-        return None
-    stdout = p.communicate()[0].strip()
-    if sys.version >= '3':
-        stdout = stdout.decode()
-    if p.returncode != 0:
-        if verbose:
+            raise
+        stdout,stderr = p.communicate()
+        if sys.version >= '3':
+            stdout = stdout.decode()
+            stderr = stderr.decode()
+        if verbose or self.VERBOSE:
+            print " rc:", p.returncode
+            print " out: '%s'" % stdout
+            print " err: '%s'" % stderr
+        if p.returncode != 0:
             print("unable to run %s (error)" % args[0])
-        if must_succeed:
+            print("stderr: '%s'" % stderr)
             raise ValueError("command failed")
-        return None
-    return stdout
+        return stdout
+
+    def run_failing_command(self, args, cwd=None, verbose=False):
+        # this is expected to fail, with rc != 0
+        if verbose or self.VERBOSE:
+            print "COMMAND:", args
+        try:
+            # remember shell=False, so use git.cmd on windows, not just git
+            p = subprocess.Popen(args, cwd=cwd, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        except EnvironmentError:
+            e = sys.exc_info()[1]
+            print("unable to run %s" % args[0])
+            print(e)
+            raise
+        stdout,stderr = p.communicate()
+        if sys.version >= '3':
+            stdout = stdout.decode()
+            stderr = stderr.decode()
+        if verbose or self.VERBOSE:
+            print " rc:", p.returncode
+            print " out: '%s'" % stdout
+            print " err: '%s'" % stderr
+        return (p.returncode, stdout, stderr)
 
 class BasedirMixin:
     def make_basedir(self, testname):
@@ -42,20 +70,16 @@ class BasedirMixin:
         os.makedirs(basedir)
         return basedir
 
-class Create(BasedirMixin, unittest.TestCase):
+class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
 
     def subpath(self, path):
         return os.path.join(self.basedir, path)
     def git(self, *args, **kwargs):
         workdir = kwargs.pop("workdir",
                              self.subpath(kwargs.pop("subdir", "demo")))
-        must_succeed = kwargs.pop("must_succeed", True)
         assert not kwargs, kwargs.keys()
-        output = run_command(["git"]+list(args), workdir, True,
-                             must_succeed=must_succeed)
-        if output is None:
-            self.fail("problem running git")
-        return output
+        output = self.run_command(["git"]+list(args), workdir)
+        return output.strip()
 
     def add_change(self, subdir="one", message="more"):
         with open(os.path.join(self.subpath(subdir), "README"), "a") as f:
@@ -64,7 +88,7 @@ class Create(BasedirMixin, unittest.TestCase):
         self.git("commit", "-m", message, subdir=subdir)
 
     def test_run(self):
-        out = run_command(["git-assure", "--help"], verbose=True)
+        out = self.run_command(["git-assure", "--help"])
         self.assertIn("git-assure understands the following commands", out)
         self.assertIn("setup-publish: run in a git tree, configures for push", out)
         self.assertIn("extract-tool WHERE: writes 'assure-tool' to WHERE", out)
@@ -74,13 +98,12 @@ class Create(BasedirMixin, unittest.TestCase):
         upstream = self.subpath("upstream")
         os.makedirs(upstream)
         one = self.subpath("one")
-        print upstream, one
         self.git("init", "--bare", subdir="upstream")
         self.git("clone", os.path.abspath(upstream), os.path.abspath(one),
                  workdir=upstream)
         self.add_change(message="initial-unsigned")
         self.git("push", subdir="one")
-        out = run_command(["git-assure", "setup-publish"], one)
+        out = self.run_command(["git-assure", "setup-publish"], one)
         self.assertIn("the post-commit hook will now sign changes on branch 'master'", out)
         self.assertIn("verifykey: vk0-", out)
         vk_s = re.search(r"(vk0-\w+)", out).group(1)
@@ -112,20 +135,19 @@ class Create(BasedirMixin, unittest.TestCase):
         self.assertEqual(notes, "")
 
         # run the downstream setup script
-        out = run_command([sys.executable, "./setup-assure"], two)
-        print "OUT", out
+        out = self.run_command([sys.executable, "./setup-assure"], two)
         self.assertIn("remote 'origin' configured to use verification proxy", out)
         self.assertIn("branch 'master' configured to verify with key %s" % vk_s, out)
 
         # now downstream pulls should work, fetch notes, and check signatures
         out = self.git("pull", subdir="two")
         #self.assertNotIn("Could not find local refs/notes/commits", out)
-        print "FIRST PULL", out
+        #print "FIRST PULL", out
 
         self.add_change(message="second-signed")
         self.git("push", subdir="one")
         out = self.git("pull", subdir="two")
-        print "SECOND PULL", out
+        #print "SECOND PULL", out
         one_head = self.git("rev-parse", "HEAD", subdir="one")
         two_head = self.git("rev-parse", "HEAD", subdir="two")
         self.assertEqual(one_head, two_head)
@@ -139,10 +161,15 @@ class Create(BasedirMixin, unittest.TestCase):
         self.assertNotEqual(unsigned, one_head)
         self.git("push", subdir="unsigned")
 
-        return
-        out = self.git("pull", subdir="two", must_succeed=False)
+        rc,out,err = self.run_failing_command(["git", "pull"],
+                                              self.subpath("two"))
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "")
+        self.assertIn("\nno valid signature found for branch refs/heads/master (rev %s)\n" % unsigned_head, err)
+        self.assertIn("\nfatal: Could not read from remote repository.\n", err)
         # should fail
-        print "THIRD PULL (unsigned)", out
+
+        #print "THIRD PULL (unsigned)", out
         two_head = self.git("rev-parse", "HEAD", subdir="two")
         self.assertNotEqual(two_head, unsigned_head)
 
