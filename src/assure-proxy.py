@@ -131,8 +131,9 @@ def assure_proxy(args):
     # sys.exit(1) if it rejects what it sees.
     validate(git_dir, remote_name, url, all_refs)
 
-    # now fetch all objects into a temporary remote, so that the parent fetch
-    # won't need us to provide any actual objects.
+    # now fetch all objects into a temporary remote, so that the parent "git
+    # fetch" won't ask us to provide any actual objects. This simplifies our
+    # driver considerably.
     fetch_objects(url, refspec, remote_name)
 
     debug("returning full ref list")
