@@ -19,28 +19,6 @@ setup_assure_footer_b64 = """
 #<-- setup-assure-footer-b64
 """
 
-def generate_setup_assure():
-    # we read .git/config to determine which branches have keys
-    branches = get_config_verifykeys()
-
-    # then generate a middle section that will create a dict with the pubkeys
-    keyconfig = 'branches = {\n'
-    for branch in sorted(branches):
-        shortbranch = remove_prefix(branch, "refs/heads/", True)
-        keyconfig += '  "%s": set([\n' % shortbranch
-        for key in branches[branch]:
-            keyconfig += '    "%s",\n' % key
-        keyconfig += '   ]),\n'
-    keyconfig += '}\n\n'
-
-    # then combine a header, the middle, and a footer, into a program that
-    # will install and configure everything
-    setup_assure = "".join([base64.b64decode(setup_assure_header_b64),
-                            keyconfig,
-                            base64.b64decode(setup_assure_footer_b64)
-                            ])
-    return setup_assure
-
 def print_help():
     print "git-assure understands the following commands:"
     print " setup-publish: run in a git tree, configures for push"
@@ -63,10 +41,21 @@ elif command == "setup-publish":
     # this makes a keypair, updates .git/config, and adds a post-commit hook
     subprocess.call([tool, "setup-publish", "--create-keypair", "master"])
     # then we create ./setup-assure for clients to use
-    f = open("setup-assure", "wb")
-    f.write(generate_setup_assure())
-    f.close()
+    with open("setup-assure", "wb") as f:
+        f.write(base64.b64decode(setup_assure_header_b64))
+        f.write(base64.b64decode(setup_assure_footer_b64))
     make_executable("setup-assure")
+    # along with an assure.config with the branch->key information from
+    # .git/config
+    branches = get_config_verifykeys()
+    with open("assure.config", "wb") as f:
+        f.write("# -*- mode: conf; coding: utf-8 -*-\n")
+        f.write("[branches]\n")
+        for branch in sorted(branches):
+            shortbranch = remove_prefix(branch, "refs/heads/", True)
+            keys = " ".join([key for key in branches[branch]])
+            f.write("%s = %s\n" % (shortbranch, keys))
+
     # then maybe execute TOOL subscribe, not sure yet
 
 elif command == "extract-tool":
