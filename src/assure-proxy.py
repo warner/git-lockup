@@ -2,12 +2,6 @@
 ## needs common tools like announce(), debug(), run_command()
 
 def assure_proxy(args):
-    def get_remote_refs(url):
-        # git-ls-remote returns tab-joined "SHA\tNAME", and we want to format
-        # it differently. Return a list of (SHA, NAME) tuples.
-        tab_text = run_command(["git", "ls-remote", url])
-        return [tuple(line.split()) for line in tab_text.splitlines()]
-
     def validate(git_dir, remote_name, url, all_refs):
         all_refs = dict([(name, sha) for (sha, name) in all_refs])
         debug("got %d refs" % len(all_refs))
@@ -88,6 +82,34 @@ def assure_proxy(args):
 
 
 
+    debug("ARGS=%s" % (args,))
+    remote_name, url = args[:2]
+    git_dir = os.path.abspath(os.environ["GIT_DIR"])
+    debug(git_dir)
+
+    # extract the 'fetch' config for the real remote
+    refspec = run_command(["git", "config", "remote.%s.fetch" % remote_name]).strip()
+    debug("REFSPEC: %s" % refspec)
+    debug("URL: %s" % url)
+
+    # use git-ls-remote to obtain the real list of references. We'll do our
+    # validation on this list, then return the list to the "git fetch"
+    # driver.
+    def get_remote_refs(url):
+        # git-ls-remote returns tab-joined "SHA\tNAME", and we want to format
+        # it differently. Return a list of (SHA, NAME) tuples.
+        tab_text = run_command(["git", "ls-remote", url])
+        return [tuple(line.split()) for line in tab_text.splitlines()]
+    all_refs = get_remote_refs(url)
+    debug("all refs: '%s'" % (all_refs,))
+
+    # now validate the references. This is the core of git-assure. It will
+    # sys.exit(1) if it rejects what it sees.
+    validate(git_dir, remote_name, url, all_refs)
+
+    # now fetch all objects into a temporary remote, so that the parent "git
+    # fetch" won't ask us to provide any actual objects. This simplifies our
+    # driver considerably.
     def fetch_objects(url, orig_refspec, remote_name):
         temp_remote = remote_name + "-assure-temp"
         refspec = orig_refspec.replace("refs/remotes/%s/" % remote_name,
@@ -110,30 +132,6 @@ def assure_proxy(args):
             run_command(["git", "update-ref", "-d",
                          "refs/remotes/%s/%s" % (temp_remote, refname)])
         debug("deleted temp refs")
-
-    debug("ARGS=%s" % (args,))
-    remote_name, url = args[:2]
-    git_dir = os.path.abspath(os.environ["GIT_DIR"])
-    debug(git_dir)
-
-    # extract the 'fetch' config for the real remote
-    refspec = run_command(["git", "config", "remote.%s.fetch" % remote_name]).strip()
-    debug("REFSPEC: %s" % refspec)
-    debug("URL: %s" % url)
-
-    # use git-ls-remote to obtain the real list of references. We'll do our
-    # validation on this list, then return the list to the "git fetch"
-    # driver.
-    all_refs = get_remote_refs(url)
-    debug("all refs: '%s'" % (all_refs,))
-
-    # now validate the references. This is the core of git-assure. It will
-    # sys.exit(1) if it rejects what it sees.
-    validate(git_dir, remote_name, url, all_refs)
-
-    # now fetch all objects into a temporary remote, so that the parent "git
-    # fetch" won't ask us to provide any actual objects. This simplifies our
-    # driver considerably.
     fetch_objects(url, refspec, remote_name)
 
     debug("returning full ref list")
