@@ -40,10 +40,6 @@ setup_assure_b64 = """
 #<-- setup-assure-b64
 """
 
-post_commit_b64 = """
-#<-- post-commit-b64
-"""
-
 def setup_publish_set_hook():
     # once per repo
     pc = ".git/hooks/post-commit"
@@ -54,7 +50,9 @@ def setup_publish_set_hook():
         announce("old .git/hooks/post-commit is in the way")
         return
     with open(pc, "wb") as f:
-        f.write(base64.b64decode(post_commit_b64))
+        f.write("#!/bin/sh\n")
+        f.write("\n")
+        f.write("$GIT_DIR/git-assure post-commit\n")
     make_executable(pc)
 
 def setup_publish_config(create_keypair, branch):
