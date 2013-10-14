@@ -14,9 +14,12 @@
 # ensure that you only get changes from the upstream author of this
 # project, preventing unauthorized commits injected at any intermediate
 # repositories or hosting providers.
+import os, sys, base64
 
-# we need make_executable() from common.py
-#<-- common
+def make_executable(tool):
+    oldmode = os.stat(tool).st_mode & int("07777", 8)
+    newmode = (oldmode | int("0555", 8)) & int("07777", 8)
+    os.chmod(tool, newmode)
 
 # this is filled in by "git-assure setup-publish", with a copy of git-assure
 git_assure_b64 = """
@@ -31,5 +34,4 @@ f.write(base64.b64decode(git_assure_b64))
 f.close()
 make_executable(tool)
 
-import os,sys
 os.execv(sys.executable, [sys.executable, tool, "setup-client"])
