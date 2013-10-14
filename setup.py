@@ -65,7 +65,6 @@ class my_build_scripts(build_scripts):
             os.makedirs(tempdir)
 
         add_substitution("ed25519", "ed25519.py")
-        add_substitution("common", "common.py")
         add_base64_substitution("setup-assure-b64", "setup-assure-template")
 
         git_assure = os.path.join(self.build_dir, "temp", "git-assure")
