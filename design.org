@@ -475,25 +475,25 @@ git-assure: Ensure the validity of your git checkouts
    addition to .assure-sign-key : once you start publishing sigs, you should
    expect sigs back. That will also trigger the setup-assure creation to
    include those keys
-** TODO maybe put the list of "branches which are supposed to be signed" in a
+** DONE maybe put the list of "branches which are supposed to be signed" in a
    separate file? What happens when you add one later.. should we re-generate
    setup-assure?
-** merge setup_assure_header_b64 and _footer_b64. The keyconfig doesn't
+** DONE merge setup_assure_header_b64 and _footer_b64. The keyconfig doesn't
    depend upon the header, so just build keyconfig+setup_assure_b64. The
    header has only a welcome comment, but since the keyconfig is pretty
    short, you'd still see the welcome message even if it weren't at the
    tippy-top of the file.
-** merge git-assure and assure-tool? just invoke it in different ways?
+** DONE merge git-assure and assure-tool? just invoke it in different ways?
 *** "git-assure setup-publish" needs a copy of git-assure. use argv[0], read
     its contents, base64-encode, include inside the generated setup-assure
 *** setup-client is included in assure-tool, but unused (only called from
     setup-assure)
 ** DONE change substitution code in setup.py to wrap each interpolated block
    with "== BEGIN/END $name ==", then remove same from assure-tool-template
-** move .git/config-changing code out of setup-assure and into "assure-tool
-   subscribe". maybe. the fact that this part is driven by the embedded
-   keyconfig suggests otherwise.
-** fewer substitutions. "sign" and "report" are only used in assure-tool
+** DONE move .git/config-changing code out of setup-assure and into
+   "assure-tool subscribe". maybe. the fact that this part is driven by the
+   embedded keyconfig suggests otherwise.
+** DONE fewer substitutions. "sign" and "report" are only used in assure-tool
 ** in post-commit-hook.template, run "git-assure sign" instead of
    "assure-tool post-commit", since internally it will run sign() anyways.
    Likewise the client-side url configuration calls "assure-tool fetch",
@@ -511,6 +511,14 @@ git-assure: Ensure the validity of your git checkouts
    update-ref --delete FETCH_HEAD" instead
 ** new name: "git-lockup"?
 ** setup-publish: git add the "setup-assure" and "assure.config" files
+** setup.py build: create git-assure in a mktmp file, not build/temp, it's
+   kind of in the way for tab-completion of build/[TAB]
+** make setup-assure locate the assure.config file (next to argv[0]) and pass
+   it as an argument into "git-assure setup-client". Default usage is to put
+   setup-assure in the top of the project tree, but make it possible to go
+   into misc/ or something. Consider moving assure.config to .assure.cfg or
+   .assure.yaml or something, in which case setup-assure should look for it
+   in the top of the git tree.
 * current design (08-Oct-2013)
 ** first publisher must have a copy of git-assure
 ** they run "git-assure setup-publish" in their project tree
