@@ -1,11 +1,3 @@
-#tmp -*- python -*-
-
-#tmp This template is used by the git-assure tool to create ./setup-assure .
-#tmp It includes an encoded copy of git-assure. When ./setup-assure is
-#tmp run by a client (someone who has just cloned the repo and wants to begin
-#tmp protecting their fetches), ./setup-assure will use its encoded copy to
-#tmp create .git/git-assure, and then read the branch/pubkey list from the
-#tmp neighboring assure.config file to modify .git/config
 
 # Welcome to git-assure!
 
@@ -14,6 +6,7 @@
 # ensure that you only get changes from the upstream author of this
 # project, preventing unauthorized commits injected at any intermediate
 # repositories or hosting providers.
+
 import os, sys, base64
 
 def make_executable(tool):
@@ -21,12 +14,12 @@ def make_executable(tool):
     newmode = (oldmode | int("0555", 8)) & int("07777", 8)
     os.chmod(tool, newmode)
 
-# this is filled in by "git-assure setup-publish", with a copy of git-assure
+# this is filled in by "git-assure setup-publish", with a copy of git-assure.
 git_assure_b64 = """
 GIT_ASSURE_B64
 """
 
-# install .git/git-assure
+# First we install .git/git-assure
 assert os.path.isdir(".git")
 tool = os.path.abspath(".git/git-assure")
 f = open(tool, "wb")
@@ -34,4 +27,7 @@ f.write(base64.b64decode(git_assure_b64))
 f.close()
 make_executable(tool)
 
+# Then we run "git-assure setup-client" to configure everything. This will
+# read assure.config to determine the branch/pubkey list before modifying
+# .git/config
 os.execv(sys.executable, [sys.executable, tool, "setup-client"])
