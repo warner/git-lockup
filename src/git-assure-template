@@ -212,6 +212,13 @@ def git_add(fn):
     run_command(["git", "add", fn])
 
 def setup_publish():
+    """I prepare a source tree to add and publish signatures with each
+    commit. I create a keypair for the 'master' branch and configure a
+    post-commit hook which will sign each commit. I also create two files
+    ('setup-assure' and 'assure.config') and git-add them to the source tree
+    so they'll be available to downstream clients, who can run setup-assure
+    to configure their tree to verify our signatures.
+    """
     assert os.path.isdir(".git")
     tool = ".git/git-assure"
     me = read_myself()
@@ -243,6 +250,9 @@ def setup_publish():
     # then maybe execute TOOL subscribe, not sure yet
 
 def post_commit():
+    """I run as a git post-commit hook, and create a signature for each
+    revision on the branches that we're configured to manage.
+    """
     # this is called from .git/hooks/post-commit . The post-commit hook gets
     # no arguments, so neither do we.
     print "--"
@@ -304,6 +314,10 @@ def setup_client_branch(remote, branch, key):
         print "branch '%s' configured to verify with key %s" % (branch, key)
 
 def setup_client():
+    """I am run by a downstream developer, after they've done a git-clone. I
+    configure the source tree to verify signatures on each commit before
+    allowing them to be fetched.
+    """
     from ConfigParser import SafeConfigParser
     config = SafeConfigParser()
     config.readfp(open("assure.config"))
@@ -423,6 +437,13 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
     debug("deleted temp refs")
 
 def fetch_proxy(args):
+    """I am invoked as a git-remote proxy, via the 'ext::.git/git-assure'
+    pseudo-URL configured in [remote]BRANCHNAME.url . I implement a
+    line-oriented command protocol, but do most of my work before
+    interpreting the first command. My job is to fetch the proposed revisions
+    and check for a good signature on them, before making them visible to the
+    real 'git-fetch' or 'git-pull' in progress.
+    """
     debug("ARGS=%s" % (args,))
     remote_name, url = args[:2]
     git_dir = os.path.abspath(os.environ["GIT_DIR"])
@@ -471,11 +492,11 @@ def fetch_proxy(args):
         sys.exit(1)
 
 def report():
-    print "REPORT"
-
-    # for every branch mentioned in .git/config, report whether we sign
-    # commits, and whether we require signatures. Also check on the proxy
-    # config and the post-commit hook.
+    """I emit a summary of the git-assure configuration: for every branch
+    mentioned in .git/config, report whether we sign commits, and whether we
+    require signatures. I also check on the proxy config and the post-commit
+    hook.
+    """
 
     current_branch = None
     all_branches = set()
@@ -528,7 +549,8 @@ def report():
 def print_help():
     print "git-assure understands the following commands:"
     print " setup-publish: run in a git tree, configures for push"
-    print " ..."
+    print " report: check/describe the git-assure configuration"
+    # the other commands are for internal use
 
 def main(argv):
     command = None
