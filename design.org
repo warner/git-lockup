@@ -508,8 +508,8 @@ git-assure: Ensure the validity of your git checkouts
 ** change signature code: if pynacl or python-ed25519 is installed globally,
    use it (faster), but always be able to fall back to the included
    pure-python version
-** src/assure-proxy.py uses os.unlink(.git/FETCH_HEAD), maybe should use "git
-   update-ref --delete FETCH_HEAD" instead
+** DONE src/assure-proxy.py uses os.unlink(.git/FETCH_HEAD), maybe should use
+   "git update-ref --delete FETCH_HEAD" instead
 ** DONE new name: "git-lockup"?
 ** DONE setup-publish: git add the "setup-assure" and "assure.config" files
 ** DONE setup.py build: create git-assure in a mktmp file, not build/temp,

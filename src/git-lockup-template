@@ -366,7 +366,8 @@ def proxy_validate(git_dir, remote_name, url, all_refs):
         upstream_notes_revid = None
     else:
         upstream_notes_revid = run_command(["git", "rev-parse", "FETCH_HEAD"]).strip()
-        os.unlink(".git/FETCH_HEAD")
+        run_command(["git", "update-ref", "--delete", "FETCH_HEAD"],
+                    eat_stderr=True)
 
     for branch,keys in branch_and_keys.items():
         if branch not in all_refs:
@@ -421,10 +422,8 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
     run_command(["git", "fetch", "--no-tags", "--update-head-ok", url, refspec],
                 eat_stderr=True)
     debug("fetched refs")
-    try:
-        os.unlink(".git/FETCH_HEAD")
-    except EnvironmentError:
-        pass
+    run_command(["git", "update-ref", "--delete", "FETCH_HEAD"],
+                eat_stderr=True)
     # and delete all the temporary tracking branches
     temp_refs = set()
     for line in run_command(["git", "branch", "--remote"]).splitlines():
@@ -432,7 +431,7 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
         if line.startswith(temp_remote):
             temp_refs.add(line.replace("%s/" % temp_remote, ""))
     for refname in temp_refs:
-        run_command(["git", "update-ref", "-d",
+        run_command(["git", "update-ref", "--delete",
                      "refs/remotes/%s/%s" % (temp_remote, refname)])
     debug("deleted temp refs")
 
