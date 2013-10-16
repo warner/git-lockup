@@ -282,7 +282,7 @@ def post_commit():
 
 def setup_client(remote, branch, key):
     rawurl, rawpushurl = set_config_raw_urls(remote)
-    ext_url = "ext::.git/git-assure fetch %s %s" % (remote, rawurl)
+    ext_url = "ext::.git/git-assure fetch-proxy %s %s" % (remote, rawurl)
     run_command(["git", "config", "remote.%s.url" % remote, ext_url])
     # we must make sure pushurl is set too, since our proxy doesn't know how
     # to push anything. If they already had a pushurl, stick with it.
@@ -409,7 +409,7 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
                      "refs/remotes/%s/%s" % (temp_remote, refname)])
     debug("deleted temp refs")
 
-def assure_proxy(args):
+def fetch_proxy(args):
     debug("ARGS=%s" % (args,))
     remote_name, url = args[:2]
     git_dir = os.path.abspath(os.environ["GIT_DIR"])
@@ -536,8 +536,8 @@ elif command == "setup-client":
         assert remote
         for key in keys.split():
             setup_client(remote, branch, key)
-elif command == "fetch":
-    assure_proxy(sys.argv[2:])
+elif command == "fetch-proxy":
+    fetch_proxy(sys.argv[2:])
 elif command == "report":
     report()
 else:

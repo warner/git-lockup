@@ -494,7 +494,7 @@ git-assure: Ensure the validity of your git checkouts
    "assure-tool subscribe". maybe. the fact that this part is driven by the
    embedded keyconfig suggests otherwise.
 ** DONE fewer substitutions. "sign" and "report" are only used in assure-tool
-** in post-commit-hook.template, run "git-assure sign" instead of
+** DONE in post-commit-hook.template, run "git-assure sign" instead of
    "assure-tool post-commit", since internally it will run sign() anyways.
    Likewise the client-side url configuration calls "assure-tool fetch",
    which internally runs assure_proxy(), and should be renamed to make things
