@@ -503,16 +503,17 @@ git-assure: Ensure the validity of your git checkouts
     specific environment, whereas "sign" as a command name sounds like it
     could be run by a human. So stick with "post-commit" and change the
     internals to match.
-** general approach: build an end-to-end test, then start breaking things
+** DONE general approach: build an end-to-end test, then start breaking
+   things
 ** change signature code: if pynacl or python-ed25519 is installed globally,
    use it (faster), but always be able to fall back to the included
    pure-python version
 ** src/assure-proxy.py uses os.unlink(.git/FETCH_HEAD), maybe should use "git
    update-ref --delete FETCH_HEAD" instead
-** new name: "git-lockup"?
+** DONE new name: "git-lockup"?
 ** DONE setup-publish: git add the "setup-assure" and "assure.config" files
-** setup.py build: create git-assure in a mktmp file, not build/temp, it's
-   kind of in the way for tab-completion of build/[TAB]
+** DONE setup.py build: create git-assure in a mktmp file, not build/temp,
+   it's kind of in the way for tab-completion of build/[TAB]
 ** make setup-assure locate the assure.config file (next to argv[0]) and pass
    it as an argument into "git-assure setup-client". Default usage is to put
    setup-assure in the top of the project tree, but make it possible to go

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, base64
+import os, base64, tempfile
 from distutils.core import setup, Command
 from distutils.command.build_scripts import build_scripts
 
@@ -60,24 +60,21 @@ def add_base64_substitution(name, source):
 
 class my_build_scripts(build_scripts):
     def run(self):
-        tempdir = os.path.join(self.build_dir, "temp")
-        if not os.path.isdir(tempdir):
-            os.makedirs(tempdir)
-
         add_substitution("ed25519", "ed25519.py")
         add_base64_substitution("setup-lockup-b64", "setup-lockup.py")
-
-        git_lockup = os.path.join(self.build_dir, "temp", "git-lockup")
-        print "creating", git_lockup
-        f = open(git_lockup, "w")
-        f.write(construct("git-lockup-template"))
-        f.close()
+        tempdir = tempfile.mkdtemp()
+        git_lockup = os.path.join(tempdir, "git-lockup")
+        with open(git_lockup, "wb") as f:
+            f.write(construct("git-lockup-template"))
 
         # modify self.scripts with the source pathname of scripts to install
         # into self.build_dir . When we upcall, those scripts will be copied
         # and adjusted (their shbang line set to sys.executable).
         self.scripts = [git_lockup]
-        return build_scripts.run(self)
+        rc = build_scripts.run(self)
+        os.unlink(git_lockup)
+        os.rmdir(tempdir)
+        return rc
 commands["build_scripts"] = my_build_scripts
 
 class Test(Command):
@@ -100,6 +97,6 @@ setup(name="git-lockup",
       author_email="warner-git-lockup@lothar.com",
       license="MIT",
       url="https://github.com/warner/git-lockup",
-      scripts=["src/git-lockup"],
+      scripts=["I WILL BE REPLACED IN my_build_scripts"],
       cmdclass=commands,
       )
