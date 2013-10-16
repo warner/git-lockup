@@ -208,6 +208,9 @@ def setup_publish_config(create_keypair, branch):
 
     # now create setup-assure, including this. quine!
 
+def git_add(fn):
+    run_command(["git", "add", fn])
+
 def setup_publish():
     assert os.path.isdir(".git")
     tool = ".git/git-assure"
@@ -224,6 +227,7 @@ def setup_publish():
     with open("setup-assure", "wb") as f:
         f.write(setup_assure)
     make_executable("setup-assure")
+    git_add("setup-assure")
     # along with an assure.config with the branch->key information from
     # .git/config
     branches = get_config_verifykeys()
@@ -234,6 +238,7 @@ def setup_publish():
             shortbranch = remove_prefix(branch, "refs/heads/", True)
             keys = " ".join([key for key in branches[branch]])
             f.write("%s = %s\n" % (shortbranch, keys))
+    git_add("assure.config")
 
     # then maybe execute TOOL subscribe, not sure yet
 

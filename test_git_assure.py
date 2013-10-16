@@ -107,8 +107,7 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         self.assertIn("verifykey: vk0-", out)
         vk_s = re.search(r"(vk0-\w+)", out).group(1)
         #self.assertIn("you should now commit the generated 'setup-assure'", out)
-        self.git("add", "setup-assure", subdir="one")
-        self.git("add", "assure.config", subdir="one")
+        # setup-publish automatically adds setup-assure and assure.config
 
         # pyflakes one/.git/assure-tool
         # pyflakes one/setup-assure
