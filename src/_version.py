@@ -180,7 +180,7 @@ def versions_from_parentdir(parentdir_prefix, versionfile_source, verbose=False)
     return {"version": dirname[len(parentdir_prefix):], "full": ""}
 
 tag_prefix = ""
-parentdir_prefix = "git-assure-"
+parentdir_prefix = "git-lockup-"
 versionfile_source = "src/_version.py"
 
 def get_versions(default={"version": "unknown", "full": ""}, verbose=False):

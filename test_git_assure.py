@@ -2,9 +2,9 @@
 import os, sys, re, subprocess, tempfile, shutil, unittest
 
 scriptdir = os.path.abspath("build/scripts-%d.%d" % (sys.version_info[:2]))
-ga = os.path.join(scriptdir, "git-assure")
+ga = os.path.join(scriptdir, "git-lockup")
 if not os.path.isdir(scriptdir) or not os.path.exists(ga):
-    print "'git-assure' script is missing: please run 'setup.py build'"
+    print "'git-lockup' script is missing: please run 'setup.py build'"
     sys.exit(1)
 os.environ["PATH"] = os.pathsep.join([scriptdir]+
                                      os.environ["PATH"].split(os.pathsep))
@@ -88,8 +88,8 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         self.git("commit", "-m", message, subdir=subdir)
 
     def test_run(self):
-        out = self.run_command(["git-assure", "--help"])
-        self.assertIn("git-assure understands the following commands", out)
+        out = self.run_command(["git-lockup", "--help"])
+        self.assertIn("git-lockup understands the following commands", out)
         self.assertIn("setup-publish: run in a git tree, configures for push", out)
 
     def test_setup(self):
@@ -102,15 +102,15 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
                  workdir=upstream)
         self.add_change(message="initial-unsigned")
         self.git("push", subdir="one")
-        out = self.run_command(["git-assure", "setup-publish"], one)
+        out = self.run_command(["git-lockup", "setup-publish"], one)
         self.assertIn("the post-commit hook will now sign changes on branch 'master'", out)
         self.assertIn("verifykey: vk0-", out)
         vk_s = re.search(r"(vk0-\w+)", out).group(1)
-        #self.assertIn("you should now commit the generated 'setup-assure'", out)
-        # setup-publish automatically adds setup-assure and assure.config
+        #self.assertIn("you should now commit the generated 'setup-lockup'", out)
+        # setup-publish automatically adds setup-lockup and lockup.config
 
-        # pyflakes one/.git/assure-tool
-        # pyflakes one/setup-assure
+        # pyflakes one/.git/lockup-tool
+        # pyflakes one/setup-lockup
 
         # now that the publishing repo is configured to sign commits, adding
         # a change should get a note with a signature
@@ -134,7 +134,7 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         self.assertEqual(notes, "")
 
         # run the downstream setup script
-        out = self.run_command([sys.executable, "./setup-assure"], two)
+        out = self.run_command([sys.executable, "./setup-lockup"], two)
         self.assertIn("remote 'origin' configured to use verification proxy", out)
         self.assertIn("branch 'master' configured to verify with key %s" % vk_s, out)
 

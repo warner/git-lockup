@@ -1,5 +1,5 @@
 
-# Welcome to git-assure!
+# Welcome to git-lockup!
 
 # By running this program, your git checkout will be configured to check
 # per-revision signatures every time you fetch new changes. This will
@@ -14,20 +14,20 @@ def make_executable(tool):
     newmode = (oldmode | int("0555", 8)) & int("07777", 8)
     os.chmod(tool, newmode)
 
-# this is filled in by "git-assure setup-publish", with a copy of git-assure.
-git_assure_b64 = """
-GIT_ASSURE_B64
+# this is filled in by "git-lockup setup-publish", with a copy of git-lockup.
+git_lockup_b64 = """
+GIT_LOCKUP_B64
 """
 
-# First we install .git/git-assure
+# First we install .git/git-lockup
 assert os.path.isdir(".git")
-tool = os.path.abspath(".git/git-assure")
+tool = os.path.abspath(".git/git-lockup")
 f = open(tool, "wb")
-f.write(base64.b64decode(git_assure_b64))
+f.write(base64.b64decode(git_lockup_b64))
 f.close()
 make_executable(tool)
 
-# Then we run "git-assure setup-client" to configure everything. This will
-# read assure.config to determine the branch/pubkey list before modifying
+# Then we run "git-lockup setup-client" to configure everything. This will
+# read lockup.config to determine the branch/pubkey list before modifying
 # .git/config
 os.execv(sys.executable, [sys.executable, tool, "setup-client"])

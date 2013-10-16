@@ -8,7 +8,7 @@ import versioneer
 versioneer.versionfile_source = "src/_version.py"
 versioneer.versionfile_build = "VERSIONFILE_BUILD"
 versioneer.tag_prefix = ""
-versioneer.parentdir_prefix = "git-assure-"
+versioneer.parentdir_prefix = "git-lockup-"
 
 LONG_DESCRIPTION="""\
 Sign+verify author signatures on git commits.
@@ -65,18 +65,18 @@ class my_build_scripts(build_scripts):
             os.makedirs(tempdir)
 
         add_substitution("ed25519", "ed25519.py")
-        add_base64_substitution("setup-assure-b64", "setup-assure.py")
+        add_base64_substitution("setup-lockup-b64", "setup-lockup.py")
 
-        git_assure = os.path.join(self.build_dir, "temp", "git-assure")
-        print "creating", git_assure
-        f = open(git_assure, "w")
-        f.write(construct("git-assure-template"))
+        git_lockup = os.path.join(self.build_dir, "temp", "git-lockup")
+        print "creating", git_lockup
+        f = open(git_lockup, "w")
+        f.write(construct("git-lockup-template"))
         f.close()
 
         # modify self.scripts with the source pathname of scripts to install
         # into self.build_dir . When we upcall, those scripts will be copied
         # and adjusted (their shbang line set to sys.executable).
-        self.scripts = [git_assure]
+        self.scripts = [git_lockup]
         return build_scripts.run(self)
 commands["build_scripts"] = my_build_scripts
 
@@ -88,18 +88,18 @@ class Test(Command):
     def finalize_options(self):
         pass
     def run(self):
-        import test_git_assure
-        test_git_assure.unittest.main(module=test_git_assure, argv=["dummy"])
+        import test_git_lockup
+        test_git_lockup.unittest.main(module=test_git_lockup, argv=["dummy"])
 commands["test"] = Test
 
-setup(name="git-assure",
+setup(name="git-lockup",
       version=versioneer.get_version(),
       description="sign+verify git commits",
       long_description=LONG_DESCRIPTION,
       author="Brian Warner",
-      author_email="warner-git-assure@lothar.com",
+      author_email="warner-git-lockup@lothar.com",
       license="MIT",
-      url="https://github.com/warner/git-assure",
-      scripts=["src/git-assure"],
+      url="https://github.com/warner/git-lockup",
+      scripts=["src/git-lockup"],
       cmdclass=commands,
       )

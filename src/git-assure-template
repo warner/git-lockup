@@ -1,25 +1,25 @@
 #!/usr/bin/python
 
-# I am the globally-installed "git-assure" tool. My commands:
+# I am the globally-installed "git-lockup" tool. My commands:
 #  * setup-publish: install publishing tools into the local git tree,
-#                   use them to create a "setup-assure" script for
+#                   use them to create a "setup-lockup" script for
 #                   subscribers
 
-# I live in .git/git-assure, and get installed by one of two paths:
-# * by publishers, when they run "git-assure setup-publish"
-# * by clients, when they run "./setup-assure"
+# I live in .git/git-lockup, and get installed by one of two paths:
+# * by publishers, when they run "git-lockup setup-publish"
+# * by clients, when they run "./setup-lockup"
 # I am called in multiple ways:
-# * "git-assure setup-publish" (by publishers), to prepare a tree for
+# * "git-lockup setup-publish" (by publishers), to prepare a tree for
 #   publishing. This may create a keypair (or ask for an existing signing
 #   key), then modify .git/config and add a post-commit hook, then will
-#   create and git-add ./setup-assure, then will advise the user to commit
-#   and push (to make ./setup-assure available to clients)
-# * "git-assure subscribe" (by setup-assure, run by clients). This modifies
+#   create and git-add ./setup-lockup, then will advise the user to commit
+#   and push (to make ./setup-lockup available to clients)
+# * "git-lockup subscribe" (by setup-lockup, run by clients). This modifies
 #   .git/config to run during a fetch, and adds the verifying key
-# * "git-assure fetch" (during git-fetch, run by clients). This intercepts
+# * "git-lockup fetch" (during git-fetch, run by clients). This intercepts
 #   the fetch process, examines the remote references, checks their
 #   signatures, and allows the fetch to proceed if they are valid.
-# * "git-assure post-commit" (during git-commit's post-commit hook, run by
+# * "git-lockup post-commit" (during git-commit's post-commit hook, run by
 #   clients). This creates a signature and adds it to the git-notes entry for
 #   the new revision.
 
@@ -121,11 +121,11 @@ def get_config_regexp(regexp):
 def get_config_verifykeys():
     # these are the branches we're configured to care about
     branches = {} # maps branch name to set of keys
-    keylines = get_config_regexp(r"^branch\..*\.assure-key$")
+    keylines = get_config_regexp(r"^branch\..*\.lockup-key$")
     for line in keylines:
-        mo = re.search(r'^branch\.([^.]*)\.assure-key\s+([\w\-]+)$', line)
+        mo = re.search(r'^branch\.([^.]*)\.lockup-key\s+([\w\-]+)$', line)
         if not mo:
-            announce("confusing assure-key line: '%s'" % line)
+            announce("confusing lockup-key line: '%s'" % line)
             continue
         branch = mo.group(1)
         if "/" not in branch:
@@ -136,28 +136,28 @@ def get_config_verifykeys():
     return branches
 
 def set_config_raw_urls(remote):
-    rawurl = get_config("remote.%s.assure-raw-url" % remote)
-    rawpushurl = get_config("remote.%s.assure-raw-pushurl" % remote)
+    rawurl = get_config("remote.%s.lockup-raw-url" % remote)
+    rawpushurl = get_config("remote.%s.lockup-raw-pushurl" % remote)
     if not rawurl:
         rawurl = get_config("remote.%s.url" % remote)
         if rawurl:
             run_command(["git", "config",
-                         "remote.%s.assure-raw-url" % remote, rawurl])
+                         "remote.%s.lockup-raw-url" % remote, rawurl])
         rawpushurl = get_config("remote.%s.pushurl" % remote)
         if rawpushurl:
             run_command(["git", "config",
-                         "remote.%s.assure-raw-pushurl" % remote, rawpushurl])
+                         "remote.%s.lockup-raw-pushurl" % remote, rawpushurl])
     return rawurl, rawpushurl
 
 #<-- ed25519
 
 def read_myself():
     me = os.path.abspath(sys.argv[0])
-    assert me.endswith("git-assure")
+    assert me.endswith("git-lockup")
     return open(me, "rb").read()
 
-setup_assure_b64 = """
-#<-- setup-assure-b64
+setup_lockup_b64 = """
+#<-- setup-lockup-b64
 """
 
 def setup_publish_set_hook():
@@ -172,7 +172,7 @@ def setup_publish_set_hook():
     with open(pc, "wb") as f:
         f.write("#!/bin/sh\n")
         f.write("\n")
-        f.write("$GIT_DIR/git-assure post-commit\n")
+        f.write("$GIT_DIR/git-lockup post-commit\n")
     make_executable(pc)
 
 def setup_publish_config(create_keypair, branch):
@@ -190,8 +190,8 @@ def setup_publish_config(create_keypair, branch):
     rawurl, rawpushurl = set_config_raw_urls(remote)
 
     # once per branch
-    signkey_key = "branch.%s.assure-sign-key" % branch
-    verfkey_key = "branch.%s.assure-key" % branch
+    signkey_key = "branch.%s.lockup-sign-key" % branch
+    verfkey_key = "branch.%s.lockup-key" % branch
     old_key = get_config(signkey_key)
     if old_key:
         print "branch '%s' already has a key configured, ignoring" % branch
@@ -206,7 +206,7 @@ def setup_publish_config(create_keypair, branch):
         run_command(["git", "config", verfkey_key, vk_s])
     print "verifykey: %s" % vk_s
 
-    # now create setup-assure, including this. quine!
+    # now create setup-lockup, including this. quine!
 
 def git_add(fn):
     run_command(["git", "add", fn])
@@ -215,37 +215,37 @@ def setup_publish():
     """I prepare a source tree to add and publish signatures with each
     commit. I create a keypair for the 'master' branch and configure a
     post-commit hook which will sign each commit. I also create two files
-    ('setup-assure' and 'assure.config') and git-add them to the source tree
-    so they'll be available to downstream clients, who can run setup-assure
+    ('setup-lockup' and 'lockup.config') and git-add them to the source tree
+    so they'll be available to downstream clients, who can run setup-lockup
     to configure their tree to verify our signatures.
     """
     assert os.path.isdir(".git")
-    tool = ".git/git-assure"
+    tool = ".git/git-lockup"
     me = read_myself()
     with open(tool, "wb") as f:
         f.write(me)
     make_executable(tool)
     # this makes a keypair, updates .git/config, and adds a post-commit hook
     setup_publish_config(True, "master")
-    # Then we create ./setup-assure for clients to use. We must insert a copy
+    # Then we create ./setup-lockup for clients to use. We must insert a copy
     # of ourselves.
-    setup_assure = base64.b64decode(setup_assure_b64)
-    setup_assure = setup_assure.replace("GIT_ASSURE_B64", base64.b64encode(me))
-    with open("setup-assure", "wb") as f:
-        f.write(setup_assure)
-    make_executable("setup-assure")
-    git_add("setup-assure")
-    # along with an assure.config with the branch->key information from
+    setup_lockup = base64.b64decode(setup_lockup_b64)
+    setup_lockup = setup_lockup.replace("GIT_LOCKUP_B64", base64.b64encode(me))
+    with open("setup-lockup", "wb") as f:
+        f.write(setup_lockup)
+    make_executable("setup-lockup")
+    git_add("setup-lockup")
+    # along with an lockup.config with the branch->key information from
     # .git/config
     branches = get_config_verifykeys()
-    with open("assure.config", "wb") as f:
+    with open("lockup.config", "wb") as f:
         f.write("# -*- mode: conf; coding: utf-8 -*-\n")
         f.write("[branches]\n")
         for branch in sorted(branches):
             shortbranch = remove_prefix(branch, "refs/heads/", True)
             keys = " ".join([key for key in branches[branch]])
             f.write("%s = %s\n" % (shortbranch, keys))
-    git_add("assure.config")
+    git_add("lockup.config")
 
     # then maybe execute TOOL subscribe, not sure yet
 
@@ -277,7 +277,7 @@ def post_commit():
     msg = "%s=%s" % (fullbranch, rev)
     print "MSG:", msg
 
-    keys = get_config("branch.%s.assure-sign-key" % branch)
+    keys = get_config("branch.%s.lockup-sign-key" % branch)
     if not keys:
         print "No signing key in .git/config, ignoring"
         sys.exit(0)
@@ -288,7 +288,7 @@ def post_commit():
 
     sig = ed25519_sign(sk, msg)
     sig_s = "sig0-"+to_ascii(sig)
-    line = "assure: %s %s %s" % (msg, sig_s, vk)
+    line = "lockup: %s %s %s" % (msg, sig_s, vk)
     print line
 
     run_command(["git", "notes", "append", "-m", line, rev])
@@ -297,7 +297,7 @@ def post_commit():
 
 def setup_client_branch(remote, branch, key):
     rawurl, rawpushurl = set_config_raw_urls(remote)
-    ext_url = "ext::.git/git-assure fetch-proxy %s %s" % (remote, rawurl)
+    ext_url = "ext::.git/git-lockup fetch-proxy %s %s" % (remote, rawurl)
     run_command(["git", "config", "remote.%s.url" % remote, ext_url])
     # we must make sure pushurl is set too, since our proxy doesn't know how
     # to push anything. If they already had a pushurl, stick with it.
@@ -306,11 +306,11 @@ def setup_client_branch(remote, branch, key):
         run_command(["git", "config", "remote.%s.pushurl" % remote, rawurl])
     print "remote '%s' configured to use verification proxy" % remote
 
-    verfkeys = get_all_config("branch.%s.assure-key" % branch)
+    verfkeys = get_all_config("branch.%s.lockup-key" % branch)
     if key in verfkeys:
         print "branch '%s' was already configured to verify with key %s" % (branch, key)
     else:
-        run_command(["git", "config", "--add", "branch.%s.assure-key" % branch, key])
+        run_command(["git", "config", "--add", "branch.%s.lockup-key" % branch, key])
         print "branch '%s' configured to verify with key %s" % (branch, key)
 
 def setup_client():
@@ -320,7 +320,7 @@ def setup_client():
     """
     from ConfigParser import SafeConfigParser
     config = SafeConfigParser()
-    config.readfp(open("assure.config"))
+    config.readfp(open("lockup.config"))
     for branch,keys in config.items("branches"):
         remote = get_config("branch.%s.remote" % branch)
         assert remote
@@ -337,9 +337,9 @@ def proxy_get_all_signatures(revid, upstream_notes_revid, local_notes_revid):
     lines = set()
     lines.update(remote_lines.splitlines())
     lines.update(local_lines.splitlines())
-    return [line.replace("assure: ", "")
+    return [line.replace("lockup: ", "")
             for line in lines
-            if line.startswith("assure:")]
+            if line.startswith("lockup:")]
 
 def proxy_validate(git_dir, remote_name, url, all_refs):
     all_refs = dict([(name, sha) for (sha, name) in all_refs])
@@ -370,7 +370,7 @@ def proxy_validate(git_dir, remote_name, url, all_refs):
 
     for branch,keys in branch_and_keys.items():
         if branch not in all_refs:
-            # tolerate missing branches. This allows assure= lines to be
+            # tolerate missing branches. This allows lockup= lines to be
             # set up in the config file before the named branches are
             # actually published. I *think* this is safe and useful, but
             # could be convinced otherwise.
@@ -414,7 +414,7 @@ def proxy_get_remote_refs(url):
     return [tuple(line.split()) for line in tab_text.splitlines()]
 
 def proxy_fetch_objects(url, orig_refspec, remote_name):
-    temp_remote = remote_name + "-assure-temp"
+    temp_remote = remote_name + "-lockup-temp"
     refspec = orig_refspec.replace("refs/remotes/%s/" % remote_name,
                                    "refs/remotes/%s/" % temp_remote)
     debug("fetching new refs")
@@ -437,7 +437,7 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
     debug("deleted temp refs")
 
 def fetch_proxy(args):
-    """I am invoked as a git-remote proxy, via the 'ext::.git/git-assure'
+    """I am invoked as a git-remote proxy, via the 'ext::.git/git-lockup'
     pseudo-URL configured in [remote]BRANCHNAME.url . I implement a
     line-oriented command protocol, but do most of my work before
     interpreting the first command. My job is to fetch the proposed revisions
@@ -460,7 +460,7 @@ def fetch_proxy(args):
     all_refs = proxy_get_remote_refs(url)
     debug("all refs: '%s'" % (all_refs,))
 
-    # now validate the references. This is the core of git-assure. It will
+    # now validate the references. This is the core of git-lockup. It will
     # sys.exit(1) if it rejects what it sees.
     proxy_validate(git_dir, remote_name, url, all_refs)
 
@@ -492,7 +492,7 @@ def fetch_proxy(args):
         sys.exit(1)
 
 def report():
-    """I emit a summary of the git-assure configuration: for every branch
+    """I emit a summary of the git-lockup configuration: for every branch
     mentioned in .git/config, report whether we sign commits, and whether we
     require signatures. I also check on the proxy config and the post-commit
     hook.
@@ -533,12 +533,12 @@ def report():
         desc = []
         if branch in configured_branches:
             configured = True
-            signkey = get_config("branch.%s.assure-sign-key" % branch)
+            signkey = get_config("branch.%s.lockup-sign-key" % branch)
             if signkey:
                 sk = from_ascii(remove_prefix(signkey, "sk0-"))
                 vk_s = "vk0-"+to_ascii(ed25519_create_verifying_key(sk))
                 desc.append("will sign (%s)" % vk_s)
-            verifykeys = get_all_config("branch.%s.assure-key" % branch)
+            verifykeys = get_all_config("branch.%s.lockup-key" % branch)
             for key in set(verifykeys):
                 desc.append("will verify (%s)" % key)
         else:
@@ -547,9 +547,9 @@ def report():
         print "branch %s: %s" % (branch, ", ".join(desc))
 
 def print_help():
-    print "git-assure understands the following commands:"
+    print "git-lockup understands the following commands:"
     print " setup-publish: run in a git tree, configures for push"
-    print " report: check/describe the git-assure configuration"
+    print " report: check/describe the git-lockup configuration"
     # the other commands are for internal use
 
 def main(argv):
