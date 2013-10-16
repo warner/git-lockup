@@ -520,6 +520,8 @@ git-assure: Ensure the validity of your git checkouts
    into misc/ or something. Consider moving assure.config to .assure.cfg or
    .assure.yaml or something, in which case setup-assure should look for it
    in the top of the git tree.
+** implement "subscribe". maybe just rename setup-client and make sure its
+   idempotent. maybe rename setup-publish to just "publish"
 * current design (08-Oct-2013)
 ** first publisher must have a copy of git-assure
 ** they run "git-assure setup-publish" in their project tree

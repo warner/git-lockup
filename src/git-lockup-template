@@ -6,8 +6,8 @@
 #                   subscribers
 
 # I live in .git/git-lockup, and get installed by one of two paths:
-# * by publishers, when they run "git-lockup setup-publish"
-# * by clients, when they run "./setup-lockup"
+#   * by publishers, when they run "git-lockup setup-publish"
+#   * by clients, when they run "./setup-lockup"
 # I am called in multiple ways:
 # * "git-lockup setup-publish" (by publishers), to prepare a tree for
 #   publishing. This may create a keypair (or ask for an existing signing
@@ -25,7 +25,7 @@
 
 # note: don't print anything to stdout at the top-level, as stdout is used by
 # the proxy when we're in 'fetch' mode. Use stderr instead. It is safe to
-# print to stdout form the non-fetch commands, though.
+# print to stdout from the non-fetch commands, though.
 
 import re, sys, os, subprocess, base64
 
