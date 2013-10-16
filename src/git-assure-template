@@ -285,7 +285,7 @@ def post_commit():
     print "note added"
 
 
-def setup_client(remote, branch, key):
+def setup_client_branch(remote, branch, key):
     rawurl, rawpushurl = set_config_raw_urls(remote)
     ext_url = "ext::.git/git-assure fetch-proxy %s %s" % (remote, rawurl)
     run_command(["git", "config", "remote.%s.url" % remote, ext_url])
@@ -303,7 +303,15 @@ def setup_client(remote, branch, key):
         run_command(["git", "config", "--add", "branch.%s.assure-key" % branch, key])
         print "branch '%s' configured to verify with key %s" % (branch, key)
 
-## needs common tools like announce(), debug(), run_command()
+def setup_client():
+    from ConfigParser import SafeConfigParser
+    config = SafeConfigParser()
+    config.readfp(open("assure.config"))
+    for branch,keys in config.items("branches"):
+        remote = get_config("branch.%s.remote" % branch)
+        assert remote
+        for key in keys.split():
+            setup_client_branch(remote, branch, key)
 
 def proxy_get_all_signatures(revid, upstream_notes_revid, local_notes_revid):
     remote_lines = run_command(["git", "show",
@@ -522,30 +530,27 @@ def print_help():
     print " setup-publish: run in a git tree, configures for push"
     print " ..."
 
-command = None
-if len(sys.argv) > 1:
-    command = sys.argv[1]
+def main(argv):
+    command = None
+    if len(argv) > 1:
+        command = argv[1]
 
-if command in ("help", "--help"):
-    print_help()
-elif command == "setup-publish":
-    setup_publish()
-elif command == "post-commit":
-    post_commit()
-elif command == "setup-client":
-    from ConfigParser import SafeConfigParser
-    config = SafeConfigParser()
-    config.readfp(open("assure.config"))
-    for branch,keys in config.items("branches"):
-        remote = get_config("branch.%s.remote" % branch)
-        assert remote
-        for key in keys.split():
-            setup_client(remote, branch, key)
-elif command == "fetch-proxy":
-    fetch_proxy(sys.argv[2:])
-elif command == "report":
-    report()
-else:
-    print "unknown command '%s'" % command
-    print_help()
-    sys.exit(1)
+    if command in ("help", "--help"):
+        print_help()
+    elif command == "setup-publish":
+        setup_publish()
+    elif command == "post-commit":
+        post_commit()
+    elif command == "setup-client":
+        setup_client()
+    elif command == "fetch-proxy":
+        fetch_proxy(argv[2:])
+    elif command == "report":
+        report()
+    else:
+        print "unknown command '%s'" % command
+        print_help()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main(sys.argv)
