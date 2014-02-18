@@ -1,6 +1,6 @@
 #+STARTUP: hidestars
 
-git-assure: Ensure the validity of your git checkouts
+git-lockup: Ensure the validity of your git checkouts
 
 Also consider https://www.agwa.name/projects/git-crypt/ or
 https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
@@ -543,17 +543,17 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 **** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
 **** add branch.NAME.assure-key if not already set
 * new design:
-** first publisher has copy of git-assure, runs "git assure setup-publish"
+** first publisher has copy of git-lockup, runs "git assure setup-publish"
 *** that has a default behavior of --create-keypair=master
-*** it copies git-assure into .git/git-assure verbatim
+*** it copies git-lockup into .git/git-lockup verbatim
 *** then creates a keypair, updates .git/config, adds post-commit hook
 *** then creates ./setup-assure for clients, which include a copy of
-    git-assure
+    git-lockup
 *** then creates assure.config with the branch info
-** post-commit hook runs .git/git-assure post-commit-hook, which signs
+** post-commit hook runs .git/git-lockup post-commit-hook, which signs
 ** subscribers run ./setup-assure
-*** that dumps .git/git-assure
-*** then runs .git/git-assure setup-client
+*** that dumps .git/git-lockup
+*** then runs .git/git-lockup setup-client
 **** which reads assure.config, modifies .git/config:
 ***** set remote.NAME.url to ext::.git/assure-tool fetch REMOTE RAWURL
 ***** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
