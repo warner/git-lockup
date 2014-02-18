@@ -1,31 +1,36 @@
 #!/usr/bin/python
 
-# I am the globally-installed "git-lockup" tool. My commands:
-#  * setup-publish: install publishing tools into the local git tree,
-#                   use them to create a "setup-lockup" script for
-#                   subscribers
-#  * report: print a summary of git-lockup configuration. For every branch in
-#            report whether we sign commits, and whether we require
-#            signatures. This also checks the proxy config settings and the
-#            post-commit hook.
+"""
+I am the globally-installed "git-lockup" tool. I have two user-facing
+commands:
+ * setup-publish: install publishing tools into the local git tree,
+                  use them to create a "setup-lockup" script for
+                  subscribers
+ * report: print a summary of git-lockup configuration. For every branch in
+           report whether we sign commits, and whether we require
+           signatures. This also checks the proxy config settings and the
+           post-commit hook.
 
-# I live in .git/git-lockup, and get installed by one of two paths:
-#   * by publishers, when they run "git-lockup setup-publish"
-#   * by clients, when they run "./setup-lockup"
-# I am called in multiple ways:
-# * "git-lockup setup-publish" (by publishers), to prepare a tree for
-#   publishing. This may create a keypair (or ask for an existing signing
-#   key), then modify .git/config and add a post-commit hook, then will
-#   create and git-add ./setup-lockup, then will advise the user to commit
-#   and push (to make ./setup-lockup available to clients)
-# * "git-lockup subscribe" (by setup-lockup, run by clients). This modifies
-#   .git/config to run during a fetch, and adds the verifying key
-# * "git-lockup fetch" (during git-fetch, run by clients). This intercepts
-#   the fetch process, examines the remote references, checks their
-#   signatures, and allows the fetch to proceed if they are valid.
-# * "git-lockup post-commit" (during git-commit's post-commit hook, run by
-#   clients). This creates a signature and adds it to the git-notes entry for
-#   the new revision.
+I am also copied into .git/git-lockup when installed into a particular
+source tree:
+  * by publishers, when they run "git-lockup setup-publish"
+  * by clients, when they run "./setup-lockup"
+
+I am called in multiple ways:
+* "git-lockup setup-publish" (by publishers), to prepare a tree for
+  publishing. This may create a keypair (or ask for an existing signing
+  key), then modify .git/config and add a post-commit hook, then will
+  create and git-add ./setup-lockup, then will advise the user to commit
+  and push (to make ./setup-lockup available to clients)
+* "git-lockup subscribe" (by setup-lockup, run by clients). This modifies
+  .git/config to run during a fetch, and adds the verifying key
+* "git-lockup fetch" (during git-fetch, run by clients). This intercepts
+  the fetch process, examines the remote references, checks their
+  signatures, and allows the fetch to proceed if they are valid.
+* "git-lockup post-commit" (during git-commit's post-commit hook, run by
+  clients). This creates a signature and adds it to the git-notes entry for
+  the new revision.
+"""
 
 # note: don't print anything to stdout at the top-level, as stdout is used by
 # the proxy when we're in 'fetch' mode. Use stderr instead. It is safe to
