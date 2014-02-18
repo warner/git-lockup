@@ -543,19 +543,19 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 **** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
 **** add branch.NAME.assure-key if not already set
 * new design:
-** first publisher has copy of git-lockup, runs "git assure setup-publish"
+** first publisher has copy of git-lockup, runs "git lockup setup-publish"
 *** that has a default behavior of --create-keypair=master
 *** it copies git-lockup into .git/git-lockup verbatim
 *** then creates a keypair, updates .git/config, adds post-commit hook
-*** then creates ./setup-assure for clients, which include a copy of
+*** then creates ./setup-lockup for clients, which include a copy of
     git-lockup
-*** then creates assure.config with the branch info
+*** then creates lockup.config with the branch info
 ** post-commit hook runs .git/git-lockup post-commit-hook, which signs
-** subscribers run ./setup-assure
+** subscribers run ./setup-lockup
 *** that dumps .git/git-lockup
 *** then runs .git/git-lockup setup-client
-**** which reads assure.config, modifies .git/config:
-***** set remote.NAME.url to ext::.git/assure-tool fetch REMOTE RAWURL
+**** which reads lockup.config, modifies .git/config:
+***** set remote.NAME.url to ext::.git/lockup-tool fetch REMOTE RAWURL
 ***** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
-***** add branch.NAME.assure-key if not already set
+***** add branch.NAME.lockup-key if not already set
 
