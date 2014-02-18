@@ -101,7 +101,9 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         self.git("clone", os.path.abspath(upstream), os.path.abspath(one),
                  workdir=upstream)
         self.add_change(message="initial-unsigned")
-        self.git("push", subdir="one")
+        # first push needs to be explicit, since we haven't added a
+        # remote.origin.push refspec in .git/config yet
+        self.git("push", "origin", "master", subdir="one")
         out = self.run_command(["git-lockup", "setup-publish"], one)
         self.assertIn("the post-commit hook will now sign changes on branch 'master'", out)
         self.assertIn("verifykey: vk0-", out)
