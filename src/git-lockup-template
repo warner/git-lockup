@@ -4,6 +4,10 @@
 #  * setup-publish: install publishing tools into the local git tree,
 #                   use them to create a "setup-lockup" script for
 #                   subscribers
+#  * report: print a summary of git-lockup configuration. For every branch in
+#            report whether we sign commits, and whether we require
+#            signatures. This also checks the proxy config settings and the
+#            post-commit hook.
 
 # I live in .git/git-lockup, and get installed by one of two paths:
 #   * by publishers, when they run "git-lockup setup-publish"

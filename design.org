@@ -550,12 +550,12 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 *** then creates ./setup-lockup for clients, which include a copy of
     git-lockup
 *** then creates lockup.config with the branch info
-** post-commit hook runs .git/git-lockup post-commit-hook, which signs
+** post-commit hook runs ".git/git-lockup post-commit", which signs
 ** subscribers run ./setup-lockup
 *** that dumps .git/git-lockup
 *** then runs .git/git-lockup setup-client
 **** which reads lockup.config, modifies .git/config:
-***** set remote.NAME.url to ext::.git/lockup-tool fetch REMOTE RAWURL
+***** set remote.NAME.url to "ext::.git/git-lockup fetch-proxy REMOTE RAWURL"
 ***** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
 ***** add branch.NAME.lockup-key if not already set
 
