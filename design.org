@@ -2,6 +2,9 @@
 
 git-assure: Ensure the validity of your git checkouts
 
+Also consider https://www.agwa.name/projects/git-crypt/ or
+https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
+
 * usage
   - this package has a bunch of source code, but only creates a single .py
     output file, "git-assure"
