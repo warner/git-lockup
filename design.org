@@ -560,7 +560,7 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 ***** add branch.NAME.lockup-key if not already set
 
 * bugs
-** setup-lockup needs a shbang
+** DONE setup-lockup needs a shbang
 ** publish config is no longer pushing the normal branches (it pushes notes,
    but "push = :" is no longer enough to trigger the defaults)
 *** probably a newer git thing

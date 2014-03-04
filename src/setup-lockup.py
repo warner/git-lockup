@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 # Welcome to git-lockup!
 
