@@ -375,7 +375,7 @@ def proxy_validate(git_dir, remote_name, url, all_refs):
         upstream_notes_revid = None
     else:
         upstream_notes_revid = run_command(["git", "rev-parse", "FETCH_HEAD"]).strip()
-        run_command(["git", "update-ref", "--delete", "FETCH_HEAD"],
+        run_command(["git", "update-ref", "-d", "FETCH_HEAD"],
                     eat_stderr=True)
 
     for branch,keys in branch_and_keys.items():
@@ -431,7 +431,7 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
     run_command(["git", "fetch", "--no-tags", "--update-head-ok", url, refspec],
                 eat_stderr=True)
     debug("fetched refs")
-    run_command(["git", "update-ref", "--delete", "FETCH_HEAD"],
+    run_command(["git", "update-ref", "-d", "FETCH_HEAD"],
                 eat_stderr=True)
     # and delete all the temporary tracking branches
     temp_refs = set()
@@ -440,7 +440,7 @@ def proxy_fetch_objects(url, orig_refspec, remote_name):
         if line.startswith(temp_remote):
             temp_refs.add(line.replace("%s/" % temp_remote, ""))
     for refname in temp_refs:
-        run_command(["git", "update-ref", "--delete",
+        run_command(["git", "update-ref", "-d",
                      "refs/remotes/%s/%s" % (temp_remote, refname)])
     debug("deleted temp refs")
 
