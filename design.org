@@ -559,3 +559,11 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 ***** set remote.NAME.pushurl (to either RAWURL or a pre-existing pushurl)
 ***** add branch.NAME.lockup-key if not already set
 
+* bugs
+** setup-lockup needs a shbang
+** publish config is no longer pushing the normal branches (it pushes notes,
+   but "push = :" is no longer enough to trigger the defaults)
+*** probably a newer git thing
+*** manually doing a "git push origin master" fixes it, once
+** 'git pull' couldn't find notes
+*** then 'git update-ref delete' failed
