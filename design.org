@@ -561,9 +561,16 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 
 * bugs
 ** DONE setup-lockup needs a shbang
-** publish config is no longer pushing the normal branches (it pushes notes,
-   but "push = :" is no longer enough to trigger the defaults)
+** DONE publish config is no longer pushing the normal branches (it pushes
+   notes, but "push = :" is no longer enough to trigger the defaults)
 *** probably a newer git thing
 *** manually doing a "git push origin master" fixes it, once
+*** also, do a push *before* doing setup-publish, to establish a matching
+    branch
 ** 'git pull' couldn't find notes
-*** then 'git update-ref delete' failed
+*** maybe add fetch=+refs/notes/commits:refs/notes/commits to config?
+*** maybe fetch notes to a temporary FETCH_HEAD and then merge with "git
+    notes merge -s cat_sort_uniq FETCH_HEAD". May need this on the publisher
+    side too.
+** DONE then 'git update-ref --delete' failed
+*** actually spelled '-d'
