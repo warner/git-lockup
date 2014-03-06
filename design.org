@@ -572,5 +572,17 @@ https://github.com/blake2-ppc/git-remote-gcrypt for confidentiality.
 *** maybe fetch notes to a temporary FETCH_HEAD and then merge with "git
     notes merge -s cat_sort_uniq FETCH_HEAD". May need this on the publisher
     side too.
+*** or.. fetch notes to a distinct ref ("refs/notes/lockup"?), don't include
+    the lockup ref in refspec, don't touch refs/notes/commits, merge with
+    cat_sort_uniq, use "git notes --ref refs/notes/lockup show" to access.
+    Publisher uses same ref name. If you have more than one publisher, they
+    must use this merge for pulling (although really, the default merge would
+    work unless you have multiple branches pointing at the same commit, or
+    two different publishers sign the same commit).
+*** http://thread.gmane.org/gmane.comp.version-control.git/222644/focus%3D222812
+    has some proposals about how to manage remote sharing of 'notes' refs
+**** https://github.com/aspiers/git-config/blob/master/bin/git-rnotes
+**** he uses "git fetch $remote refs/notes/$name:refs/notes/$remote/$name"
+     with name="commits" and "git notes merge -v refs/notes/$remote/$name"
 ** DONE then 'git update-ref --delete' failed
 *** actually spelled '-d'
