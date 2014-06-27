@@ -1,6 +1,7 @@
-
 git-lockup : sign and verify author signatures on git commits
 =============================================================
+
+[![Build Status](https://travis-ci.org/warner/git-lockup.png?branch=master)](https://travis-ci.org/warner/git-lockup)
 
 This tool makes it easy to "lock" your git checkout to the author's signing key, meaning you'll get the correct commits even if the network (or an intermediate repository like Github) is trying to convince you otherwise.
 
