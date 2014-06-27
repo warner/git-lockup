@@ -25,7 +25,7 @@ git-lockup is a self-contained python program. All crypto uses a pure-python imp
 
 ## Compatibility
 
-git-lockup has been tested against python2.7 . It might work on other versions, I don't know yet.
+git-lockup has been tested against python2.6 and python2.7 . It might work on other versions, I don't know yet.
 
 ## Security Model
 

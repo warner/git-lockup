@@ -87,6 +87,10 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         self.git("add", "README", subdir=subdir)
         self.git("commit", "-m", message, subdir=subdir)
 
+    def assertIn(self, member, container):
+        if member not in container:
+            self.fail("'%s' not found in '%s'" % (member, container))
+
     def test_run(self):
         out = self.run_command(["git-lockup", "--help"])
         self.assertIn("git-lockup understands the following commands", out)
