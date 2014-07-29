@@ -63,4 +63,4 @@ Please file bugs and patches at the Github project: http://github.com/warner/git
 git-lockup is:
 
 * by Brian Warner
-* released into the public domain to enable no-fuss embedding
+* released into the [public domain](https://creativecommons.org/publicdomain/zero/1.0/) to enable no-fuss embedding
