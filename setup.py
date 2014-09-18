@@ -5,6 +5,7 @@ from distutils.core import setup, Command
 from distutils.command.build_scripts import build_scripts
 
 import versioneer
+versioneer.VCS = "git"
 versioneer.versionfile_source = "src/_version.py"
 versioneer.versionfile_build = "VERSIONFILE_BUILD"
 versioneer.tag_prefix = ""
