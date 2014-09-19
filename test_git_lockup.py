@@ -1,5 +1,5 @@
 
-import os, sys, re, subprocess, tempfile, shutil, unittest
+import os, sys, re, subprocess, shutil, unittest
 
 scriptdir = os.path.abspath("build/scripts-%d.%d" % (sys.version_info[:2]))
 ga = os.path.join(scriptdir, "git-lockup")
@@ -95,6 +95,15 @@ class Create(BasedirMixin, RunnerMixin, unittest.TestCase):
         out = self.run_command(["git-lockup", "--help"])
         self.assertIn("git-lockup understands the following commands", out)
         self.assertIn("setup-publish: run in a git tree, configures for push", out)
+
+    def test_setup_help(self):
+        self.basedir = self.make_basedir("Create.test_setup_help")
+        self.git("init", workdir=self.basedir)
+        out = self.run_command(["git-lockup", "setup-publish", "--help"],
+                               cwd=self.basedir)
+        hookfile = os.path.join(self.basedir, ".git", "hooks", "post-commit")
+        self.failIf(os.path.exists(hookfile))
+        self.assertIn("Usage: git-lockup setup-publish", out)
 
     def test_setup(self):
         self.basedir = self.make_basedir("Create.setup")
