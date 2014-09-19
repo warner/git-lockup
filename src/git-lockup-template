@@ -32,6 +32,8 @@ I am called in multiple ways:
   the new revision.
 """
 
+#<-- version
+
 # note: don't print anything to stdout at the top-level, as stdout is used by
 # the proxy when we're in 'fetch' mode. Use stderr instead. It is safe to
 # print to stdout from the non-fetch commands, though.

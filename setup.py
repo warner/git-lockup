@@ -7,7 +7,7 @@ from distutils.command.build_scripts import build_scripts
 import versioneer
 versioneer.VCS = "git"
 versioneer.versionfile_source = "src/_version.py"
-versioneer.versionfile_build = "VERSIONFILE_BUILD"
+versioneer.versionfile_build = None
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "git-lockup-"
 
@@ -30,7 +30,7 @@ The tools require python but no other dependencies.
 """
 
 commands = versioneer.get_cmdclass().copy()
-commands = {} # disable for now
+#commands = {} # disable for now
 
 substitutions = {}
 def construct(source):
@@ -57,10 +57,14 @@ def add_base64_substitution(name, source):
     b64 = base64.b64encode(construct(source))
     lines = [b64[i:i+60] for i in range(0, len(b64), 60)]
     substitutions[name] = "\n".join(lines)+"\n"
+def add_literal_substitution(name, data):
+    substitutions[name] = data
 
 
 class my_build_scripts(build_scripts):
     def run(self):
+        version = versioneer.get_version()
+        add_literal_substitution("version", 'version = "%s"\n' % version)
         add_substitution("ed25519", "ed25519.py")
         add_base64_substitution("setup-lockup-b64", "setup-lockup.py")
         tempdir = tempfile.mkdtemp()
