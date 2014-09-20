@@ -2,3 +2,4 @@
 include MANIFEST.in
 include versioneer.py
 include src/_version.py
+include src/dummy
