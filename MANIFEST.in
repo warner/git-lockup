@@ -1,5 +1,10 @@
-
 include MANIFEST.in
 include versioneer.py
+
 include src/_version.py
 include src/dummy
+include src/git-lockup-template
+include src/setup-lockup.py
+include src/ed25519.py
+
+include test_git_lockup.py
